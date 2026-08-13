@@ -1,0 +1,17 @@
+# Segredos
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Índice vetorial gerado localmente (não precisa ir pro repo)
+faiss_index/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# SO
+.DS_Store
