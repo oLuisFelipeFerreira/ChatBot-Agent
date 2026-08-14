@@ -56,17 +56,40 @@ def limpar_texto(texto: str) -> str:
     return texto
 
 
-def build_vectorstore(path: str, index_dir: str = INDEX_DIR):
-    """Le o documento, limpa, divide em chunks, gera embeddings e salva o indice."""
-    documents = load_document(path)
+def coletar_arquivos(caminho: str):
+    """Se 'caminho' for uma pasta, retorna todos os .pdf/.csv dentro dela.
+    Se for um arquivo, retorna so ele."""
+    p = Path(caminho)
+    if p.is_dir():
+        arquivos = sorted(
+            str(f) for f in p.iterdir() if f.suffix.lower() in {".pdf", ".csv"}
+        )
+        if not arquivos:
+            raise ValueError(f"Nenhum .pdf ou .csv encontrado em '{caminho}'.")
+        return arquivos
+    return [caminho]
 
-    # Limpa o texto de cada pagina ANTES de dividir em chunks
-    for doc in documents:
-        doc.page_content = limpar_texto(doc.page_content)
+
+def build_vectorstore(path: str, index_dir: str = INDEX_DIR):
+    """Le o(s) documento(s), limpa, divide em chunks e salva o indice.
+
+    'path' pode ser um arquivo unico OU uma pasta (indexa todos os
+    documentos de dentro dela).
+    """
+    arquivos = coletar_arquivos(path)
+
+    todos_documentos = []
+    for arquivo in arquivos:
+        documentos = load_document(arquivo)
+        # Limpa o texto de cada pagina ANTES de dividir em chunks
+        for doc in documentos:
+            doc.page_content = limpar_texto(doc.page_content)
+        todos_documentos.extend(documentos)
+    print(f"{len(arquivos)} arquivo(s) lido(s): {', '.join(Path(a).name for a in arquivos)}")
 
     splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=100)
-    chunks = splitter.split_documents(documents)
-    print(f"Documento dividido em {len(chunks)} chunks.")
+    chunks = splitter.split_documents(todos_documentos)
+    print(f"Dividido em {len(chunks)} chunks.")
 
     embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
     vectorstore = FAISS.from_documents(chunks, embeddings)
@@ -76,7 +99,6 @@ def build_vectorstore(path: str, index_dir: str = INDEX_DIR):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Uso: python -m src.ingest <caminho_do_documento>")
-        sys.exit(1)
-    build_vectorstore(sys.argv[1])
+    # Sem argumento, indexa a pasta data/ inteira.
+    alvo = sys.argv[1] if len(sys.argv) > 1 else "data"
+    build_vectorstore(alvo)

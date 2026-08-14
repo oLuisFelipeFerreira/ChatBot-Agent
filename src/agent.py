@@ -11,10 +11,34 @@ from langchain_anthropic import ChatAnthropic
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.chains import RetrievalQA
+from langchain.prompts import PromptTemplate
 
 from .ingest import INDEX_DIR, EMBEDDING_MODEL
 
 load_dotenv()
+
+# Prompt que "ancora" o modelo: ele so pode responder com base no contexto
+# recuperado, e deve admitir quando a resposta nao estiver ali.
+PROMPT_TEMPLATE = """Você é um assistente que responde dúvidas sobre MEI e Simples Nacional.
+
+Use SOMENTE as informações do contexto abaixo para responder. Não use
+conhecimento externo nem invente dados.
+
+Se a resposta não estiver no contexto, responda exatamente:
+"Não encontrei essa informação nos documentos disponíveis."
+
+Responda de forma direta e clara, em português.
+
+Contexto:
+{context}
+
+Pergunta: {question}
+
+Resposta:"""
+
+PROMPT = PromptTemplate(
+    template=PROMPT_TEMPLATE, input_variables=["context", "question"]
+)
 
 
 def load_agent(index_dir: str = INDEX_DIR):
@@ -46,11 +70,15 @@ def load_agent(index_dir: str = INDEX_DIR):
         llm=llm,
         retriever=retriever,
         return_source_documents=True,
+        chain_type_kwargs={"prompt": PROMPT},
     )
     return chain
 
 
-def ask(chain, pergunta: str) -> str:
-    """Faz uma pergunta ao agente e devolve a resposta em texto."""
-    resultado = chain.invoke({"query": pergunta})
-    return resultado["result"]
+def ask(chain, pergunta: str) -> dict:
+    """Faz uma pergunta ao agente.
+
+    Devolve um dicionario com a resposta ('result') e os trechos de
+    documento usados ('source_documents'), para citar a fonte.
+    """
+    return chain.invoke({"query": pergunta})
