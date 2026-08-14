@@ -6,6 +6,7 @@ Uso:
     python -m src.ingest data/documento.pdf
 """
 
+import re
 import sys
 from pathlib import Path
 
@@ -30,9 +31,38 @@ def load_document(path: str):
     return loader.load()
 
 
+def limpar_texto(texto: str) -> str:
+    """Remove ruidos comuns de PDFs (rodapes, numeros de pagina, sumario).
+
+    Os padroes abaixo foram definidos olhando o texto real dos documentos
+    da Receita (Manual DASN-SIMEI e Perguntas e Respostas MEI).
+    """
+    linhas_limpas = []
+    for linha in texto.split("\n"):
+        l = linha.strip()
+        if not l:
+            continue                              # linha vazia
+        if re.fullmatch(r"Pág\.\s*\d+", l):
+            continue                              # marcador "Pág. 12"
+        if l == "Voltar ao Sumário":
+            continue                              # rodape de navegacao
+        if re.fullmatch(r"\d{1,3}", l):
+            continue                              # numero de pagina isolado
+        if re.search(r"\.{4,}", l):
+            continue                              # linha do sumario (pontilhado)
+        linhas_limpas.append(l)
+    texto = "\n".join(linhas_limpas)
+    texto = re.sub(r"[ \t]{2,}", " ", texto)      # colapsa espacos repetidos
+    return texto
+
+
 def build_vectorstore(path: str, index_dir: str = INDEX_DIR):
-    """Le o documento, divide em chunks, gera embeddings e salva o indice FAISS."""
+    """Le o documento, limpa, divide em chunks, gera embeddings e salva o indice."""
     documents = load_document(path)
+
+    # Limpa o texto de cada pagina ANTES de dividir em chunks
+    for doc in documents:
+        doc.page_content = limpar_texto(doc.page_content)
 
     splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=100)
     chunks = splitter.split_documents(documents)
