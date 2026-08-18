@@ -7,3 +7,4 @@ faiss-cpu>=1.9,<2
 pypdf==5.*
 pandas==2.*
 python-dotenv==1.*
+streamlit==1.*
