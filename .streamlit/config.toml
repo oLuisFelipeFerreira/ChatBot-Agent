@@ -1,0 +1,21 @@
+# Tema visual do app (cores e fonte).
+# O Streamlit aplica isso automaticamente quando o app roda.
+
+[theme]
+# Forca o tema claro (evita conflito com o modo escuro do navegador)
+base = "light"
+
+# Cor principal: botoes, links e destaques. Verde-vivo do Simples Nacional.
+primaryColor = "#1D9E75"
+
+# Fundo da pagina: verde bem clarinho, agora perceptivel.
+backgroundColor = "#EAF4EE"
+
+# Fundo dos elementos (baloes, campo de chat): branco, pra contrastar com o fundo.
+secondaryBackgroundColor = "#FFFFFF"
+
+# Texto principal: verde-escuro quase preto, serio e legivel.
+textColor = "#16281F"
+
+# Fonte: sans-serif limpa, boa para conteudo tecnico.
+font = "sans serif"
