@@ -77,8 +77,19 @@ def perguntar(consulta: Consulta):
         resultado = ask(chain, consulta.pergunta)
     except Exception as erro:
         print(f"Erro ao consultar o agente: {erro}")
+        texto_erro = str(erro).lower()
+
+        # 529 (overloaded) e 429 (rate limit) sao passageiros: o servico do
+        # modelo esta congestionado. Vale avisar o usuario que e temporario,
+        # em vez de dar a impressao de que o sistema quebrou.
+        if "overloaded" in texto_erro or "529" in texto_erro or "rate limit" in texto_erro:
+            raise HTTPException(
+                status_code=503,
+                detail="O serviço está congestionado no momento.",
+            )
         raise HTTPException(
-            status_code=500, detail="Não foi possível consultar os documentos agora."
+            status_code=500,
+            detail="Não foi possível consultar os documentos agora.",
         )
 
     texto = resultado["result"]

@@ -187,46 +187,85 @@ main {
 
 .sugestao:hover { border-color: var(--acao); color: var(--acao); }
 
-/* --- Parecer (a resposta) ------------------------------------------ */
+/* --- Parecer: a resposta como documento ---------------------------- */
 
 .parecer-lista { margin-top: 8px; }
 
-.parecer {
-  margin-top: 40px;
-  padding-top: 30px;
-  border-top: 1px solid var(--filete);
-}
+.parecer { margin-top: 44px; }
 
-.parecer:first-child { border-top: 0; }
-
+/* A consulta, destacada acima do documento */
 .quesito {
-  margin: 0 0 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.quesito span {
-  font-size: .76rem;
-  letter-spacing: .03em;
-  color: var(--tinta-2);
+  margin: 0 0 14px;
+  padding-left: 15px;
+  border-left: 3px solid var(--filete);
 }
 
 .quesito q {
   font-family: "Zilla Slab", Georgia, serif;
-  font-size: 1.24rem;
+  font-size: 1.3rem;
   font-weight: 500;
   color: var(--selo);
   quotes: none;
+  line-height: 1.35;
 }
 
-.corpo { max-width: var(--medida); }
+/* O documento em si: uma folha sobre o papel de fundo */
+.documento {
+  background: var(--branco);
+  border: 1px solid var(--filete);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.cabecalho-doc {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 26px;
+  border-bottom: 1px solid var(--filete);
+  background: #F1F6F2;
+}
+
+.balanca {
+  width: 26px; height: 26px; flex: none;
+  fill: none; stroke: var(--selo); stroke-width: 1.5;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+
+.cabecalho-doc h2 {
+  font-size: 1rem;
+  color: var(--selo);
+  letter-spacing: .01em;
+}
+
+.cabecalho-doc p {
+  margin: 1px 0 0;
+  font-size: .76rem;
+  color: var(--tinta-2);
+}
+
+.corpo {
+  padding: 26px;
+  max-width: var(--medida);
+}
+
+.corpo > :first-child { margin-top: 0; }
 .corpo p { margin: 0 0 1em; }
 .corpo p:last-child { margin-bottom: 0; }
-.corpo h3 { font-size: 1.05rem; margin: 1.5em 0 .5em; color: var(--selo); }
-.corpo ul, .corpo ol { margin: 0 0 1em; padding-left: 1.3em; }
-.corpo li { margin-bottom: .35em; }
-.corpo strong { font-weight: 600; }
+
+.corpo h3 {
+  font-size: 1.06rem;
+  margin: 1.6em 0 .55em;
+  color: var(--selo);
+  padding-bottom: .3em;
+  border-bottom: 1px solid var(--filete);
+}
+
+.corpo ul, .corpo ol { margin: 0 0 1em; padding-left: 1.25em; }
+.corpo li { margin-bottom: .4em; }
+.corpo li::marker { color: var(--acao); }
+.corpo strong { font-weight: 600; color: var(--tinta); }
+
 .corpo table {
   border-collapse: collapse;
   width: 100%;
@@ -235,7 +274,7 @@ main {
 }
 .corpo th, .corpo td {
   border-bottom: 1px solid var(--filete);
-  padding: 7px 10px 7px 0;
+  padding: 8px 12px 8px 0;
   text-align: left;
 }
 .corpo th { color: var(--selo); font-weight: 600; }
@@ -256,20 +295,27 @@ main {
   50%      { opacity: 1; }
 }
 
-/* --- Fontes: a nota a margem, o gesto forte do layout -------------- */
+.falha {
+  color: var(--ocre);
+  border-left: 2px solid var(--ocre);
+  padding-left: 13px;
+  margin: 0;
+}
+
+/* --- Fontes: rodape do documento ----------------------------------- */
 
 .fontes {
-  margin-top: 26px;
-  border-left: 3px solid var(--selo);
-  padding: 2px 0 2px 16px;
+  border-top: 1px solid var(--filete);
+  background: #FAFCFA;
+  padding: 16px 26px 18px;
 }
 
 .fontes h3 {
   font-family: "Archivo", sans-serif;
-  font-size: .82rem;
+  font-size: .81rem;
   font-weight: 600;
   color: var(--selo);
-  margin-bottom: 7px;
+  margin-bottom: 8px;
 }
 
 .fontes ul { list-style: none; margin: 0; padding: 0; }
@@ -277,17 +323,13 @@ main {
 .fontes li {
   font-size: .84rem;
   color: var(--tinta-2);
-  padding: 2px 0;
+  padding: 3px 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 9px;
+  gap: 4px 10px;
 }
 
-.fontes .categoria {
-  color: var(--selo);
-  font-weight: 600;
-}
-
+.fontes .categoria { color: var(--selo); font-weight: 600; }
 .fontes .paginas { color: #7C8B83; }
 
 /* --- Ressalva e rodape --------------------------------------------- */
@@ -312,9 +354,17 @@ main {
 }
 
 .rodape p { margin: 0; }
-.rodape .links { margin-top: 7px; display: flex; gap: 18px; justify-content: center; }
-.rodape a { color: var(--acao); text-decoration: none; }
-.rodape a:hover { text-decoration: underline; }
+.rodape .links {
+  margin-top: 10px;
+  display: flex; gap: 22px; justify-content: center;
+}
+.rodape a {
+  color: var(--acao);
+  text-decoration: none;
+  display: inline-flex; align-items: center; gap: 7px;
+}
+.rodape a svg { width: 16px; height: 16px; fill: currentColor; }
+.rodape a:hover { color: var(--selo); text-decoration: underline; }
 
 /* --- Acessibilidade ------------------------------------------------ */
 
@@ -337,4 +387,6 @@ main {
   main { padding-inline: 18px; }
   .faixa { padding-inline: 18px; }
   .vigencia { display: none; }
+  .corpo, .fontes, .cabecalho-doc { padding-inline: 18px; }
+  .quesito q { font-size: 1.15rem; }
 }

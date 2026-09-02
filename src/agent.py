@@ -27,6 +27,14 @@ TOP_K = 10
 # Data da ultima atualizacao da base de documentos (exibida ao usuario).
 DATA_BASE = "agosto de 2026"
 
+# Multi-query: o modelo reescreve a pergunta em 3 versoes com vocabulario
+# juridico antes de buscar. Melhora bastante a recuperacao, MAS gasta uma
+# chamada extra de API por pergunta.
+# Coloque False para economizar chamadas ou se a API estiver sobrecarregada
+# (erro 529). A expansao de siglas do glossario continua funcionando de
+# qualquer forma -- ela e local e nao custa nada.
+USAR_MULTIQUERY = True
+
 # Prompt que "ancora" o modelo: ele so pode responder com base no contexto
 # recuperado, e deve admitir quando a resposta nao estiver ali.
 PROMPT_TEMPLATE = """Você é um assistente especializado em Direito Empresarial brasileiro.
@@ -92,15 +100,22 @@ def load_agent(index_dir: str = INDEX_DIR):
     # Se os chunks salvos nao existirem (indice antigo), cai para a busca
     # semantica pura, avisando -- assim o app nao quebra.
     # claude-haiku-4-5: modelo rapido e economico.
-    llm = ChatAnthropic(model="claude-haiku-4-5-20251001")
+    # max_retries: a API pode responder 529 (sobrecarga temporaria) ou 429
+    # (limite de taxa). Sao erros passageiros, entao a propria biblioteca
+    # tenta de novo, com espera crescente entre as tentativas.
+    llm = ChatAnthropic(
+        model="claude-haiku-4-5-20251001",
+        max_retries=5,
+        timeout=60,
+    )
 
     chunks = carregar_chunks()
     if chunks:
-        # Passar o llm ativa o multi-query (reescreve a pergunta em 3 versoes
-        # com vocabulario juridico antes de buscar). Para desativar e economizar,
-        # troque por: montar_retriever_hibrido(vectorstore, chunks, k=TOP_K)
         retriever = montar_retriever_hibrido(
-            vectorstore, chunks, k=TOP_K, llm=llm
+            vectorstore,
+            chunks,
+            k=TOP_K,
+            llm=llm if USAR_MULTIQUERY else None,
         )
     else:
         print(

@@ -78,28 +78,51 @@ async function consultar(pergunta) {
   ajustarAltura();
 
   try {
+    const dados = await consultarComRetentativa(pergunta, corpo);
+    corpo.innerHTML = formatarTexto(dados.resposta);
+    mostrarFontes(parecer, dados.fontes);
+  } catch (erro) {
+    corpo.innerHTML =
+      '<p class="falha">' + escapar(erro.message) + "</p>";
+  } finally {
+    ocupado = false;
+    botao.disabled = false;
+    campo.focus();
+  }
+}
+
+/**
+ * Envia a pergunta e, se o servico estiver congestionado (503), tenta de
+ * novo sozinho -- esperando um pouco mais a cada tentativa. Sobrecarga da
+ * API e passageira; nao faz sentido desistir na primeira negativa.
+ */
+async function consultarComRetentativa(pergunta, corpo, tentativas = 3) {
+  for (let tentativa = 1; tentativa <= tentativas; tentativa++) {
     const resposta = await fetch("/api/perguntar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pergunta }),
     });
 
-    if (!resposta.ok) {
-      const erro = await resposta.json().catch(() => ({}));
-      throw new Error(erro.detail || "Não foi possível consultar agora.");
+    if (resposta.ok) return resposta.json();
+
+    const erro = await resposta.json().catch(() => ({}));
+
+    const congestionado = resposta.status === 503;
+    if (congestionado && tentativa < tentativas) {
+      corpo.innerHTML =
+        '<p class="pensando"><span class="pulso"></span>' +
+        "Serviço congestionado. Tentando novamente…</p>";
+      await new Promise((r) => setTimeout(r, tentativa * 2500));
+      continue;
     }
 
-    const dados = await resposta.json();
-    corpo.innerHTML = formatarTexto(dados.resposta);
-    mostrarFontes(parecer, dados.fontes);
-  } catch (erro) {
-    corpo.innerHTML =
-      "<p>" + escapar(erro.message) +
-      " Tente novamente em alguns instantes.</p>";
-  } finally {
-    ocupado = false;
-    botao.disabled = false;
-    campo.focus();
+    throw new Error(
+      congestionado
+        ? "O serviço está congestionado agora. Espere alguns instantes e pergunte de novo."
+        : (erro.detail || "Não foi possível consultar agora.") +
+          " Tente novamente."
+    );
   }
 }
 
@@ -171,7 +194,7 @@ function formatarTexto(texto) {
     if (!linha) { fecharLista(); return; }
 
     // Titulos: ## Texto  ou  **Texto** sozinho na linha
-    const titulo = linha.match(/^#{2,4}\s+(.*)$/);
+    const titulo = linha.match(/^#{1,4}\s+(.*)$/);
     const negritoSolo = linha.match(/^\*\*(.+)\*\*:?$/);
     if (titulo || negritoSolo) {
       fecharLista();
