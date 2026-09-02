@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Assistente Empresarial — dúvidas sobre MEI, ME, EPP e registro de empresa</title>
+<meta name="description" content="Respostas sobre direito empresarial brasileiro baseadas em legislação e documentos oficiais, sempre com a fonte indicada.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=Zilla+Slab:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+
+<header class="topo">
+  <div class="faixa">
+    <a class="marca" href="/">
+      <svg class="selo" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 2 3 6v6c0 5 3.8 8.9 9 10 5.2-1.1 9-5 9-10V6l-9-4Z"/>
+        <path class="selo-marca" d="M8 12.2l2.6 2.6L16.2 9"/>
+      </svg>
+      <span>Assistente Empresarial</span>
+    </a>
+    <p class="vigencia">Base: <span id="vigencia">—</span></p>
+  </div>
+</header>
+
+<main>
+
+  <section class="abertura" id="abertura">
+    <h1>Burocracia empresarial,<br>respondida com a lei na mão.</h1>
+    <p class="subtitulo">
+      Pergunte sobre abrir empresa, tipos societários, MEI, Simples Nacional
+      ou registro na Junta. A resposta vem dos textos oficiais, com a fonte
+      indicada para você conferir.
+    </p>
+  </section>
+
+  <form class="consulta" id="formulario" autocomplete="off">
+    <label class="oculto" for="pergunta">Sua pergunta</label>
+    <textarea id="pergunta" name="pergunta" rows="1" maxlength="500"
+      placeholder="Ex: qual a diferença entre MEI, ME e EPP?"></textarea>
+    <button type="submit" id="enviar" aria-label="Enviar pergunta">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg>
+    </button>
+  </form>
+
+  <section class="sugestoes" id="sugestoes">
+    <h2>Dúvidas frequentes</h2>
+    <ul>
+      <li><button type="button" class="sugestao">Qual a diferença entre MEI, ME e EPP?</button></li>
+      <li><button type="button" class="sugestao">Quanto o MEI paga por mês?</button></li>
+      <li><button type="button" class="sugestao">O que define juridicamente um empresário?</button></li>
+      <li><button type="button" class="sugestao">Como registrar uma sociedade limitada?</button></li>
+      <li><button type="button" class="sugestao">Qual o prazo da declaração anual do MEI?</button></li>
+    </ul>
+  </section>
+
+  <div class="parecer-lista" id="respostas" aria-live="polite"></div>
+
+  <p class="ressalva">
+    Conteúdo informativo gerado por inteligência artificial a partir de documentos
+    oficiais. Não é consultoria jurídica ou contábil: para o seu caso concreto,
+    procure um advogado ou contador. Não escreva dados pessoais ou sigilosos.
+  </p>
+
+</main>
+
+<footer class="rodape">
+  <p>Desenvolvido por <strong>Luís Felipe Ferreira</strong></p>
+  <p class="links">
+    <a href="https://www.linkedin.com/in/luís-felipe-barbosa-ferreira-33a0a9210" target="_blank" rel="noopener">LinkedIn</a>
+    <a href="https://github.com/oLuisFelipeFerreira/alura-agent" target="_blank" rel="noopener">GitHub</a>
+  </p>
+</footer>
+
+<template id="modelo-parecer">
+  <article class="parecer">
+    <p class="quesito"><span>Consulta</span><q class="texto-pergunta"></q></p>
+    <div class="corpo"></div>
+    <aside class="fontes" hidden>
+      <h3>Fontes consultadas</h3>
+      <ul></ul>
+    </aside>
+  </article>
+</template>
+
+<script src="app.js"></script>
+</body>
+</html>

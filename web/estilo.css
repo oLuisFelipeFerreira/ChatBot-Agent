@@ -1,0 +1,340 @@
+/* =====================================================================
+   Assistente Empresarial
+   Identidade: documento oficial brasileiro, tornado acolhedor.
+   A resposta se apresenta como um parecer; as fontes como nota a margem.
+   ===================================================================== */
+
+:root {
+  --selo:    #0F5132;  /* verde institucional: marca e titulos */
+  --acao:    #127A4E;  /* verde de acao: botoes e links */
+  --papel:   #F6F8F6;  /* fundo */
+  --tinta:   #12211B;  /* texto */
+  --tinta-2: #4A5A52;  /* texto secundario */
+  --filete:  #D9E2DB;  /* reguas e bordas */
+  --ocre:    #8A6D2F;  /* apenas o aviso de IA */
+  --branco:  #FFFFFF;
+
+  --medida: 62ch;      /* largura de leitura confortavel */
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--papel);
+  color: var(--tinta);
+  font-family: "Archivo", system-ui, -apple-system, sans-serif;
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+h1, h2, h3 {
+  font-family: "Zilla Slab", Georgia, serif;
+  font-weight: 600;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.oculto {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}
+
+/* --- Topo ---------------------------------------------------------- */
+
+.topo {
+  border-bottom: 1px solid var(--filete);
+  background: var(--branco);
+}
+
+.faixa {
+  max-width: 74ch;
+  margin: 0 auto;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.marca {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--selo);
+  text-decoration: none;
+  font-family: "Zilla Slab", Georgia, serif;
+  font-weight: 600;
+  font-size: 1.02rem;
+}
+
+.selo { width: 22px; height: 22px; flex: none; }
+.selo path { fill: none; stroke: var(--selo); stroke-width: 1.7;
+             stroke-linejoin: round; stroke-linecap: round; }
+.selo .selo-marca { stroke-width: 2.1; }
+
+.vigencia {
+  margin: 0;
+  font-size: .8rem;
+  color: var(--tinta-2);
+}
+
+/* --- Abertura ------------------------------------------------------ */
+
+main {
+  max-width: 74ch;
+  margin: 0 auto;
+  padding: 0 24px 64px;
+}
+
+.abertura { padding: 56px 0 28px; }
+
+.abertura h1 {
+  font-size: clamp(1.85rem, 5.2vw, 2.7rem);
+  color: var(--selo);
+  letter-spacing: -.015em;
+}
+
+.subtitulo {
+  max-width: var(--medida);
+  margin: 16px 0 0;
+  color: var(--tinta-2);
+}
+
+/* --- Campo de consulta --------------------------------------------- */
+
+.consulta {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  background: var(--branco);
+  border: 1px solid var(--filete);
+  border-radius: 4px;
+  padding: 10px 10px 10px 16px;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.consulta:focus-within {
+  border-color: var(--acao);
+  box-shadow: 0 0 0 3px rgba(18, 122, 78, .13);
+}
+
+.consulta textarea {
+  flex: 1;
+  border: 0;
+  outline: 0;
+  resize: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  padding: 7px 0;
+  max-height: 8.5em;
+}
+
+.consulta textarea::placeholder { color: #8B9891; }
+
+.consulta button {
+  flex: none;
+  width: 40px; height: 40px;
+  border: 0;
+  border-radius: 3px;
+  background: var(--acao);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background .15s ease;
+}
+
+.consulta button:hover:not(:disabled) { background: var(--selo); }
+.consulta button:disabled { background: #A9BCB2; cursor: default; }
+.consulta button svg {
+  width: 19px; height: 19px; fill: none;
+  stroke: var(--branco); stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+
+/* --- Sugestoes ----------------------------------------------------- */
+
+.sugestoes { margin-top: 30px; }
+
+.sugestoes h2 {
+  font-size: .93rem;
+  color: var(--tinta-2);
+  font-weight: 500;
+  margin-bottom: 11px;
+}
+
+.sugestoes ul {
+  list-style: none;
+  margin: 0; padding: 0;
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+
+.sugestao {
+  font: inherit;
+  font-size: .89rem;
+  color: var(--tinta);
+  background: var(--branco);
+  border: 1px solid var(--filete);
+  border-radius: 3px;
+  padding: 7px 13px;
+  cursor: pointer;
+  transition: border-color .15s ease, color .15s ease;
+}
+
+.sugestao:hover { border-color: var(--acao); color: var(--acao); }
+
+/* --- Parecer (a resposta) ------------------------------------------ */
+
+.parecer-lista { margin-top: 8px; }
+
+.parecer {
+  margin-top: 40px;
+  padding-top: 30px;
+  border-top: 1px solid var(--filete);
+}
+
+.parecer:first-child { border-top: 0; }
+
+.quesito {
+  margin: 0 0 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.quesito span {
+  font-size: .76rem;
+  letter-spacing: .03em;
+  color: var(--tinta-2);
+}
+
+.quesito q {
+  font-family: "Zilla Slab", Georgia, serif;
+  font-size: 1.24rem;
+  font-weight: 500;
+  color: var(--selo);
+  quotes: none;
+}
+
+.corpo { max-width: var(--medida); }
+.corpo p { margin: 0 0 1em; }
+.corpo p:last-child { margin-bottom: 0; }
+.corpo h3 { font-size: 1.05rem; margin: 1.5em 0 .5em; color: var(--selo); }
+.corpo ul, .corpo ol { margin: 0 0 1em; padding-left: 1.3em; }
+.corpo li { margin-bottom: .35em; }
+.corpo strong { font-weight: 600; }
+.corpo table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0 0 1em;
+  font-size: .93rem;
+}
+.corpo th, .corpo td {
+  border-bottom: 1px solid var(--filete);
+  padding: 7px 10px 7px 0;
+  text-align: left;
+}
+.corpo th { color: var(--selo); font-weight: 600; }
+
+/* Pensando */
+.pensando {
+  color: var(--tinta-2);
+  font-size: .95rem;
+  display: flex; align-items: center; gap: 9px;
+}
+.pulso {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--acao);
+  animation: pulsar 1.3s ease-in-out infinite;
+}
+@keyframes pulsar {
+  0%, 100% { opacity: .25; }
+  50%      { opacity: 1; }
+}
+
+/* --- Fontes: a nota a margem, o gesto forte do layout -------------- */
+
+.fontes {
+  margin-top: 26px;
+  border-left: 3px solid var(--selo);
+  padding: 2px 0 2px 16px;
+}
+
+.fontes h3 {
+  font-family: "Archivo", sans-serif;
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--selo);
+  margin-bottom: 7px;
+}
+
+.fontes ul { list-style: none; margin: 0; padding: 0; }
+
+.fontes li {
+  font-size: .84rem;
+  color: var(--tinta-2);
+  padding: 2px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 9px;
+}
+
+.fontes .categoria {
+  color: var(--selo);
+  font-weight: 600;
+}
+
+.fontes .paginas { color: #7C8B83; }
+
+/* --- Ressalva e rodape --------------------------------------------- */
+
+.ressalva {
+  max-width: var(--medida);
+  margin: 46px 0 0;
+  padding-left: 14px;
+  border-left: 2px solid var(--ocre);
+  font-size: .82rem;
+  line-height: 1.55;
+  color: var(--tinta-2);
+}
+
+.rodape {
+  border-top: 1px solid var(--filete);
+  background: var(--branco);
+  padding: 22px 24px;
+  text-align: center;
+  font-size: .85rem;
+  color: var(--tinta-2);
+}
+
+.rodape p { margin: 0; }
+.rodape .links { margin-top: 7px; display: flex; gap: 18px; justify-content: center; }
+.rodape a { color: var(--acao); text-decoration: none; }
+.rodape a:hover { text-decoration: underline; }
+
+/* --- Acessibilidade ------------------------------------------------ */
+
+:focus-visible {
+  outline: 2px solid var(--acao);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+@media (max-width: 560px) {
+  body { font-size: 16px; }
+  .abertura { padding: 38px 0 22px; }
+  main { padding-inline: 18px; }
+  .faixa { padding-inline: 18px; }
+  .vigencia { display: none; }
+}
