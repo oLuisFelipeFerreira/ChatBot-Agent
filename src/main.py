@@ -1,28 +1,29 @@
 """
-Ponto de entrada do agente. Roda a indexacao (se ainda nao existir) e
-abre um loop de perguntas e respostas no terminal.
+Ponto de entrada do agente no terminal. Roda a indexacao (se ainda nao
+existir) e abre um loop de perguntas e respostas.
 
 Uso:
-    python -m src.main data/documento.pdf
+    python -m src.main            # usa a pasta data/ inteira
+    python -m src.main data/legislacao
 """
 
 import sys
 from pathlib import Path
 
-from .ingest import build_vectorstore, INDEX_DIR
-from .agent import load_agent, ask
+from .ingest import build_vectorstore, INDEX_DIR, PASTA_DADOS
+from .agent import load_agent, ask, formatar_fontes, DATA_BASE
 
 
 def main():
-    # Sem argumento, usa a pasta data/ inteira.
-    doc_path = sys.argv[1] if len(sys.argv) > 1 else "data"
+    doc_path = sys.argv[1] if len(sys.argv) > 1 else PASTA_DADOS
 
     if not Path(INDEX_DIR).exists():
         print("Indice nao encontrado, gerando pela primeira vez...")
         build_vectorstore(doc_path)
 
     chain = load_agent()
-    print("\nAgente pronto. Digite sua pergunta (ou 'sair' para encerrar).\n")
+    print(f"\nAssistente de Direito Empresarial (base: {DATA_BASE})")
+    print("Digite sua pergunta (ou 'sair' para encerrar).\n")
 
     while True:
         pergunta = input("Voce: ").strip()
@@ -32,20 +33,14 @@ def main():
             continue
 
         resultado = ask(chain, pergunta)
-        print(f"\nAgente: {resultado['result']}")
+        print(f"\nAgente: {resultado['result']}\n")
 
-        # Cita a fonte: nome do arquivo e pagina de cada trecho usado
-        fontes = set()
-        for doc in resultado["source_documents"]:
-            nome = Path(doc.metadata.get("source", "?")).name
-            pagina = doc.metadata.get("page")
-            if pagina is not None:
-                fontes.add(f"{nome} (pag. {pagina + 1})")
-            else:
-                fontes.add(nome)
+        fontes = formatar_fontes(resultado["source_documents"])
         if fontes:
-            print(f"Fontes: {', '.join(sorted(fontes))}\n")
-        else:
+            print("Fontes consultadas:")
+            for f in fontes:
+                paginas = f" (pag. {', '.join(map(str, f['paginas']))})" if f["paginas"] else ""
+                print(f"  [{f['categoria']}] {f['arquivo']}{paginas}")
             print()
 
 

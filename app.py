@@ -15,22 +15,36 @@ from pathlib import Path
 import streamlit as st
 
 from src.ingest import build_vectorstore, INDEX_DIR
-from src.agent import load_agent, ask
+from src.agent import load_agent, ask, formatar_fontes, DATA_BASE
 
 # ----------------------------------------------------------------------
 # Configuracao geral da pagina (titulo da aba, icone, layout)
 # ----------------------------------------------------------------------
 st.set_page_config(
-    page_title="Assistente MEI",
+    page_title="Assistente Empresarial",
     page_icon="🌿",
     layout="centered",
 )
 
 
-def caixa_de_fontes(texto_fontes: str):
-    """Desenha as fontes dentro de uma caixinha verde discreta."""
-    if not texto_fontes:
+def caixa_de_fontes(fontes):
+    """Desenha as fontes (com categoria) numa caixinha verde discreta.
+
+    'fontes' e a lista devolvida por formatar_fontes():
+    [{"categoria": ..., "arquivo": ..., "paginas": [...]}, ...]
+    """
+    if not fontes:
         return
+    linhas = []
+    for f in fontes:
+        paginas = (
+            " · pág. " + ", ".join(map(str, f["paginas"])) if f["paginas"] else ""
+        )
+        linhas.append(
+            f'<span style="opacity:.75">[{f["categoria"]}]</span> '
+            f'{f["arquivo"]}{paginas}'
+        )
+    texto_fontes = "<br>".join(linhas)
     st.markdown(
         f"""
         <div style="
@@ -62,11 +76,18 @@ def iniciar_agente():
 # ----------------------------------------------------------------------
 # Cabecalho
 # ----------------------------------------------------------------------
-st.title("🌿 Assistente MEI")
-st.caption("Dúvidas sobre **MEI** e **Simples Nacional**, respondidas com base nos documentos oficiais da Receita Federal.")
+st.title("🌿 Assistente Empresarial")
+st.caption(
+    f"Dúvidas de **direito empresarial** respondidas com base em legislação e "
+    f"documentos oficiais brasileiros · base atualizada em {DATA_BASE}."
+)
 
 # Aviso claro de que e uma IA (boa pratica e pedido do enunciado)
-st.info("Este é um assistente de IA com fins informativos. Não substitui orientação de um contador ou advogado.", icon="ℹ️")
+st.warning(
+    "**Conteúdo informativo gerado por IA.** Não constitui consultoria jurídica "
+    "ou contábil. Para o seu caso concreto, consulte um advogado ou contador.",
+    icon="⚠️",
+)
 
 # Prepara o agente (mostra um aviso enquanto carrega na primeira vez)
 with st.spinner("Preparando o assistente..."):
@@ -90,10 +111,10 @@ for msg in st.session_state.mensagens:
 # Ao clicar, a pergunta e "enviada" como se o usuario tivesse digitado.
 # ----------------------------------------------------------------------
 PERGUNTAS_SUGERIDAS = [
+    "Qual a diferença entre MEI, ME e EPP?",
+    "O que define juridicamente um empresário?",
+    "Quais documentos preciso para abrir uma sociedade limitada?",
     "Qual o prazo para entregar a declaração anual do MEI?",
-    "Quanto o MEI paga de imposto por mês?",
-    "O que acontece se eu passar do limite de faturamento?",
-    "Quais impostos o MEI paga pelo Simei?",
 ]
 
 pergunta_do_chip = None
@@ -108,7 +129,7 @@ if not st.session_state.mensagens:
 # ----------------------------------------------------------------------
 # Campo de pergunta (fica fixo no rodape, estilo chat)
 # ----------------------------------------------------------------------
-pergunta_digitada = st.chat_input("Ex: Qual o prazo para entregar a declaração anual do MEI?")
+pergunta_digitada = st.chat_input("Ex: Qual a diferença entre MEI, ME e EPP?")
 
 # A pergunta pode vir do campo de texto OU de um chip clicado
 pergunta = pergunta_digitada or pergunta_do_chip
@@ -125,24 +146,15 @@ if pergunta:
             resultado = ask(chain, pergunta)
             resposta = resultado["result"]
 
-            # Monta a lista de fontes (arquivo + pagina)
-            fontes = set()
-            for doc in resultado["source_documents"]:
-                nome = Path(doc.metadata.get("source", "?")).name
-                pagina = doc.metadata.get("page")
-                if pagina is not None:
-                    fontes.add(f"{nome} (pág. {pagina + 1})")
-                else:
-                    fontes.add(nome)
-            texto_fontes = ", ".join(sorted(fontes))
+            # Fontes vem dos METADADOS do indice (categoria + arquivo + pagina)
+            fontes = formatar_fontes(resultado["source_documents"])
 
         st.markdown(resposta)
-        if texto_fontes:
-            caixa_de_fontes(texto_fontes)
+        caixa_de_fontes(fontes)
 
     # Guarda a resposta no historico
     st.session_state.mensagens.append(
-        {"papel": "assistant", "texto": resposta, "fontes": texto_fontes}
+        {"papel": "assistant", "texto": resposta, "fontes": fontes}
     )
 
 # ----------------------------------------------------------------------

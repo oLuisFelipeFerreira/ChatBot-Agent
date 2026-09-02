@@ -4,6 +4,7 @@ como modelo de linguagem e o indice FAISS gerado pelo ingest.py.
 """
 
 import os
+from datetime import date
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -13,21 +14,49 @@ from langchain_community.vectorstores import FAISS
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 
-from .ingest import INDEX_DIR, EMBEDDING_MODEL
+from .ingest import INDEX_DIR, EMBEDDING_MODEL, carregar_chunks
+from .busca import montar_retriever_hibrido
 
 load_dotenv()
 
+# Quantos trechos recuperar por pergunta.
+# A base tem ~2000 chunks (leis + manuais), entao vale recuperar mais
+# contexto para o modelo ter chance de achar a resposta.
+TOP_K = 10
+
+# Data da ultima atualizacao da base de documentos (exibida ao usuario).
+DATA_BASE = "agosto de 2026"
+
 # Prompt que "ancora" o modelo: ele so pode responder com base no contexto
 # recuperado, e deve admitir quando a resposta nao estiver ali.
-PROMPT_TEMPLATE = """Você é um assistente que responde dúvidas sobre MEI e Simples Nacional.
+PROMPT_TEMPLATE = """Você é um assistente especializado em Direito Empresarial brasileiro.
+Responde dúvidas de empreendedores sobre abertura de empresa, tipos societários,
+registro empresarial, obrigações tributárias, MEI e Simples Nacional.
 
-Use SOMENTE as informações do contexto abaixo para responder. Não use
-conhecimento externo nem invente dados.
-
-Se a resposta não estiver no contexto, responda exatamente:
-"Não encontrei essa informação nos documentos disponíveis."
-
-Responda de forma direta e clara, em português.
+REGRAS OBRIGATÓRIAS:
+1. Use SOMENTE as informações do contexto abaixo. Não use conhecimento externo,
+   não invente números, prazos ou artigos.
+2. NÃO GENERALIZE POR ANALOGIA. Se o contexto afirma algo sobre uma categoria
+   (ex: o MEI), não conclua que vale para outra (ex: ME ou EPP). Cada requisito
+   só pode ser afirmado se estiver explícito no contexto para AQUELA categoria.
+3. Se a resposta não estiver no contexto, responda exatamente:
+   "Não encontrei essa informação nos documentos disponíveis."
+4. NÃO CONFUNDA AS TRÊS CLASSIFICAÇÕES, que são independentes entre si:
+   - TIPO JURÍDICO (como a empresa é constituída): empresário individual,
+     sociedade limitada, sociedade limitada unipessoal, sociedade anônima...
+   - PORTE (faixa de receita bruta): ME, EPP, ou demais.
+   - REGIME TRIBUTÁRIO (como paga impostos): Simples Nacional, Lucro
+     Presumido, Lucro Real.
+   Uma empresa tem as três coisas ao mesmo tempo, e uma não determina a outra.
+   O MEI é a exceção: está obrigatoriamente vinculado ao Simei/Simples Nacional.
+5. Quando o contexto citar um artigo de lei, mencione-o na resposta
+   (ex: "conforme o art. 966 do Código Civil").
+6. ATENÇÃO À VIGÊNCIA: se o contexto contiver notas de atualização indicando que
+   algo foi revogado, extinto ou alterado, PREVALECE a informação mais recente.
+   Avise o usuário quando a redação de uma lei mencionar instituto já extinto.
+7. Escreva em português claro, para quem não é advogado. Explique termos técnicos.
+8. Nunca afirme o que o usuário "deve fazer" no caso concreto dele — explique o
+   que a norma diz e sugira confirmar com um profissional quando o caso for específico.
 
 Contexto:
 {context}
@@ -45,8 +74,7 @@ def load_agent(index_dir: str = INDEX_DIR):
     """Carrega o indice salvo e monta a chain de perguntas e respostas."""
     if not Path(index_dir).exists():
         raise FileNotFoundError(
-            f"Indice '{index_dir}' nao encontrado. Rode antes: "
-            f"python -m src.ingest data/seu_documento.pdf"
+            f"Indice '{index_dir}' nao encontrado. Rode antes: python -m src.ingest"
         )
 
     if not os.getenv("ANTHROPIC_API_KEY"):
@@ -59,12 +87,27 @@ def load_agent(index_dir: str = INDEX_DIR):
     vectorstore = FAISS.load_local(
         index_dir, embeddings, allow_dangerous_deserialization=True
     )
-    retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
 
-    # claude-sonnet-5: bom equilibrio de qualidade e custo para RAG.
-    # Se quiser economizar chamadas de API durante os testes, troque por
-    # "claude-haiku-4-5-20251001" (mais rapido e mais barato).
-    llm = ChatAnthropic(model="claude-sonnet-5")
+    # Busca hibrida: palavra-chave (BM25) + semantica (FAISS).
+    # Se os chunks salvos nao existirem (indice antigo), cai para a busca
+    # semantica pura, avisando -- assim o app nao quebra.
+    # claude-haiku-4-5: modelo rapido e economico.
+    llm = ChatAnthropic(model="claude-haiku-4-5-20251001")
+
+    chunks = carregar_chunks()
+    if chunks:
+        # Passar o llm ativa o multi-query (reescreve a pergunta em 3 versoes
+        # com vocabulario juridico antes de buscar). Para desativar e economizar,
+        # troque por: montar_retriever_hibrido(vectorstore, chunks, k=TOP_K)
+        retriever = montar_retriever_hibrido(
+            vectorstore, chunks, k=TOP_K, llm=llm
+        )
+    else:
+        print(
+            "AVISO: chunks.json nao encontrado -- usando apenas busca semantica.\n"
+            "       Reindexe (apague faiss_index/) para ativar a busca hibrida."
+        )
+        retriever = vectorstore.as_retriever(search_kwargs={"k": TOP_K})
 
     chain = RetrievalQA.from_chain_type(
         llm=llm,
@@ -82,3 +125,48 @@ def ask(chain, pergunta: str) -> dict:
     documento usados ('source_documents'), para citar a fonte.
     """
     return chain.invoke({"query": pergunta})
+
+
+# Frase exata que o prompt manda o modelo usar quando nao acha a resposta.
+FRASE_SEM_RESPOSTA = "Não encontrei essa informação nos documentos disponíveis"
+
+
+def sem_resposta(texto: str) -> bool:
+    """Detecta se o agente respondeu que nao encontrou a informacao.
+
+    Nesse caso nao faz sentido listar fontes: nenhum documento embasou a
+    resposta, e mostrar 10 arquivos passaria a impressao errada.
+    """
+    return FRASE_SEM_RESPOSTA.lower() in texto.lower()
+
+
+def formatar_fontes(source_documents) -> list:
+    """Extrai as fontes dos metadados, agrupadas e sem repeticao.
+
+    Retorna uma lista de dicts: {"categoria": ..., "arquivo": ..., "paginas": [...]}
+    A citacao vem dos METADADOS do indice, nao do texto gerado pelo modelo --
+    assim o numero da pagina nunca sai errado.
+    """
+    agrupado = {}
+    for doc in source_documents:
+        arquivo = doc.metadata.get("arquivo") or Path(
+            doc.metadata.get("source", "?")
+        ).name
+        categoria = doc.metadata.get("categoria", "Geral")
+        pagina = doc.metadata.get("page")
+
+        chave = (categoria, arquivo)
+        agrupado.setdefault(chave, set())
+        if pagina is not None:
+            agrupado[chave].add(pagina + 1)
+
+    fontes = []
+    for (categoria, arquivo), paginas in sorted(agrupado.items()):
+        fontes.append(
+            {
+                "categoria": categoria,
+                "arquivo": arquivo,
+                "paginas": sorted(paginas),
+            }
+        )
+    return fontes
