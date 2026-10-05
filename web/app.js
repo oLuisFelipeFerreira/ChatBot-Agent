@@ -117,6 +117,13 @@ async function consultarComRetentativa(pergunta, corpo, tentativas = 3) {
       continue;
     }
 
+    // 429 = limite de uso. A mensagem do servidor ja diz o que fazer
+    // (esperar um minuto, voltar amanha); acrescentar "tente novamente"
+    // so contradiria ela.
+    if (resposta.status === 429) {
+      throw new Error(erro.detail || "Limite de consultas atingido.");
+    }
+
     throw new Error(
       congestionado
         ? "O serviço está congestionado agora. Espere alguns instantes e pergunte de novo."

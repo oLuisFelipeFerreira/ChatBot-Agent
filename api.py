@@ -12,18 +12,42 @@ Uso:
     uvicorn api:app --host 0.0.0.0 --port 8000
 """
 
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from src.ingest import build_vectorstore, INDEX_DIR, PASTA_DADOS
 from src.agent import load_agent, ask, formatar_fontes, sem_resposta, DATA_BASE
+from src.limite import Limite
 
 PASTA_WEB = Path(__file__).parent / "web"
+
+# Quanto cada visitante pode perguntar, e quanto o site todo gasta por dia.
+# Ajustaveis pelo .env conforme a cota do provedor que voce estiver usando.
+limite = Limite(
+    por_ip_minuto=int(os.getenv("LIMITE_POR_MINUTO", "6")),
+    global_dia=int(os.getenv("LIMITE_POR_DIA", "300")),
+)
+
+# Atras de um proxy (nginx, Cloudflare), o IP real vem no X-Forwarded-For e
+# request.client.host seria sempre o do proxy -- todo mundo contaria como um
+# visitante so. Fora de um proxy vale o contrario: o cabecalho e escrito pelo
+# cliente, entao confiar nele deixaria qualquer um furar o limite inventando
+# um IP. Por isso so lemos o cabecalho quando voce avisa que ha proxy.
+ATRAS_DE_PROXY = os.getenv("ATRAS_DE_PROXY", "").lower() in {"1", "true", "sim"}
+
+
+def identificar(request: Request) -> str:
+    if ATRAS_DE_PROXY:
+        encaminhado = request.headers.get("x-forwarded-for", "")
+        if encaminhado:
+            return encaminhado.split(",")[0].strip()
+    return request.client.host if request.client else "desconhecido"
 
 # Guarda o agente carregado. Fica em memoria entre as requisicoes -- carregar
 # o modelo a cada pergunta seria lento demais.
@@ -68,7 +92,11 @@ def info():
 
 
 @app.post("/api/perguntar", response_model=Resposta)
-def perguntar(consulta: Consulta):
+def perguntar(consulta: Consulta, request: Request):
+    recusa = limite.checar(identificar(request))
+    if recusa:
+        raise HTTPException(status_code=429, detail=recusa)
+
     chain = estado.get("chain")
     if chain is None:
         raise HTTPException(status_code=503, detail="O agente ainda está carregando.")
@@ -79,13 +107,35 @@ def perguntar(consulta: Consulta):
         print(f"Erro ao consultar o agente: {erro}")
         texto_erro = str(erro).lower()
 
-        # 529 (overloaded) e 429 (rate limit) sao passageiros: o servico do
-        # modelo esta congestionado. Vale avisar o usuario que e temporario,
-        # em vez de dar a impressao de que o sistema quebrou.
+        # COTA DIARIA do provedor esgotada (tipico de camada gratuita).
+        # Diferente de congestionamento: nao adianta tentar de novo daqui a
+        # pouco, so volta amanha. Por isso 429 e nao 503 -- o front NAO
+        # retenta 429, e tres tentativas inuteis contra uma cota zerada so
+        # fariam o usuario esperar mais para ler a mesma coisa.
+        if "quota" in texto_erro or "exceeded your current quota" in texto_erro:
+            raise HTTPException(
+                status_code=429,
+                detail=(
+                    "A cota gratuita de consultas deste site acabou por hoje. "
+                    "Tente novamente amanhã."
+                ),
+            )
+
+        # 529 (overloaded) e 429 por excesso de velocidade sao passageiros:
+        # o servico esta congestionado. Aqui vale retentar, entao 503.
         if "overloaded" in texto_erro or "529" in texto_erro or "rate limit" in texto_erro:
             raise HTTPException(
                 status_code=503,
                 detail="O serviço está congestionado no momento.",
+            )
+
+        # 401/403: chave invalida, vencida ou sem credito. Erro de
+        # configuracao, nao de uso -- vale dizer isso, senao quem instalou o
+        # projeto fica caçando um problema que nao existe no codigo.
+        if "401" in texto_erro or "403" in texto_erro or "authentication" in texto_erro:
+            raise HTTPException(
+                status_code=500,
+                detail="Chave de API inválida ou sem crédito. Confira o .env.",
             )
         raise HTTPException(
             status_code=500,
