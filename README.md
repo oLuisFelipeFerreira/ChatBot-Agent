@@ -107,7 +107,7 @@ Documentos oficiais (PDF · HTML · TXT)
               Multi-query (opcional)
                        │
                        ▼
-              Claude Haiku 4.5 → resposta + fontes
+        Modelo de linguagem (trocável) → resposta + fontes
 ```
 
 ### Decisões técnicas
@@ -164,21 +164,72 @@ autoral (Lei 9.610/1998, art. 8º, IV).
 
 ## Como executar
 
+### Pré-requisitos
+
+| | |
+|---|---|
+| **Python 3.11 – 3.13** | `python --version`. No Windows, marque *"Add Python to PATH"* no instalador |
+| **Git** | para clonar o repositório |
+| **~2 GB livres** | o modelo de embeddings (≈ 500 MB) é baixado na primeira execução |
+| **Internet na 1ª vez** | baixa os documentos oficiais e o modelo de embeddings |
+| **Uma chave de IA** | Anthropic, Google, Groq, OpenAI — ou **nenhuma**, usando Ollama local (veja [Trocar o modelo de IA](#trocar-o-modelo-de-ia)) |
+
+Não é preciso instalar o `uvicorn` à parte: ele vem no `requirements.txt`.
+
+### Linux / macOS
+
 ```bash
 git clone https://github.com/oLuisFelipeFerreira/alura-agent.git
 cd alura-agent
 
-python -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
 pip install -r requirements.txt
 
-cp .env.example .env               # preencha ANTHROPIC_API_KEY
+cp .env.example .env               # edite e preencha a chave do provedor
+python testar_api.py               # confere se a chave funciona (opcional, mas recomendado)
 
-python baixar_documentos.py        # baixa os documentos oficiais
-python -m src.ingest               # constrói o índice
+python -m src.ingest               # constrói o índice (demora na 1ª vez)
 
-uvicorn api:app --port 8000        # http://localhost:8000
+python -m uvicorn api:app --port 8000
 ```
+
+### Windows (PowerShell)
+
+```powershell
+git clone https://github.com/oLuisFelipeFerreira/alura-agent.git
+cd alura-agent
+
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install --upgrade pip
+pip install -r requirements.txt
+
+copy .env.example .env
+notepad .env                       # preencha a chave do provedor
+python testar_api.py
+
+python -m src.ingest
+
+python -m uvicorn api:app --port 8000
+```
+
+> Se o PowerShell bloquear o `Activate.ps1`, rode uma vez:
+> `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
+
+Depois abra **http://localhost:8000**.
+
+**O passo que não dá para pular é o `ingest`.** Os documentos de `data/` vêm
+junto com o repositório, mas `faiss_index/` está no `.gitignore` porque é
+gerado — em uma máquina nova ele não existe. A API até constrói o índice
+sozinha ao subir, mas aí você espera minutos olhando um terminal parado, sem
+saber se travou. Rode antes e veja o progresso.
+
+`python baixar_documentos.py` é **opcional**: serve para rebaixar a legislação
+quando ela mudar. Ele pula arquivos que já existem, então em um clone novo não
+faz nada. Para atualizar de verdade, apague o arquivo antigo em `data/`, rode o
+script e reindexe.
 
 ### Outras interfaces
 
@@ -187,18 +238,57 @@ python -m src.main                 # terminal
 streamlit run app.py               # interface Streamlit
 ```
 
-### Ferramentas de diagnóstico
+### Se algo der errado
 
-Construídas para depurar a recuperação sem gastar chamadas de API:
+| Sintoma | Causa e solução |
+|---|---|
+| `'uvicorn' não é reconhecido` | O venv não está ativo, ou o script não está no PATH. Use `python -m uvicorn api:app --port 8000` |
+| `ModuleNotFoundError: langchain` (ou bs4, fastapi...) | Venv não ativado antes do `pip install`. Ative e rode `pip install -r requirements.txt` de novo |
+| `ANTHROPIC_API_KEY nao encontrada` | Falta o `.env` ou a chave está vazia. Ou troque o provedor no `.env` |
+| `Chave de API inválida ou sem crédito` | A chave do `.env` expirou, foi digitada errada ou a conta está sem saldo. Rode `python testar_api.py` para confirmar |
+| `Falta o pacote do provedor 'x'` | Instale o pacote indicado na mensagem (ex.: `pip install langchain-groq`) |
+| `Indice 'faiss_index' nao encontrado` | Rode `python -m src.ingest` |
+| Índice vazio / sem fontes | `data/` está vazia — confira se o clone veio completo ou rode `python baixar_documentos.py` |
+| Primeira execução muito lenta | Normal: está baixando o modelo de embeddings (≈ 500 MB). Só acontece uma vez |
+| Erro 529 / *overloaded* | Sobrecarga temporária do provedor. Ele já tenta de novo sozinho; para economizar chamadas, coloque `USAR_MULTIQUERY = False` em `src/agent.py` |
+| Porta 8000 ocupada | `python -m uvicorn api:app --port 8001` |
+| Reindexar do zero | Apague a pasta `faiss_index/` e rode `python -m src.ingest` |
+
+---
+
+## Trocar o modelo de IA
+
+O projeto não depende da Anthropic. A geração da resposta é escolhida por
+variável de ambiente; **a busca nos documentos roda sempre local e de graça**
+(embeddings HuggingFace + FAISS + BM25), então trocar de modelo não exige
+reindexar nada.
+
+Edite o `.env`:
+
+| Provedor | `.env` | Pacote | Custo |
+|---|---|---|---|
+| **Ollama** (local) | `LLM_PROVIDER=ollama`<br>`LLM_MODEL=llama3.1` | `pip install langchain-ollama` | **Grátis, sem chave** |
+| **Google Gemini** | `LLM_PROVIDER=google_genai`<br>`LLM_MODEL=gemini-3.8-flash`<br>`GOOGLE_API_KEY=...` | `pip install langchain-google-genai` | Camada gratuita |
+| **Groq** | `LLM_PROVIDER=groq`<br>`LLM_MODEL=llama-3.3-70b-versatile`<br>`GROQ_API_KEY=...` | `pip install langchain-groq` | Camada gratuita |
+| **Anthropic** (padrão) | `LLM_PROVIDER=anthropic`<br>`LLM_MODEL=claude-haiku-4-5-20251001`<br>`ANTHROPIC_API_KEY=...` | já instalado | Pago |
+| **OpenAI** | `LLM_PROVIDER=openai`<br>`LLM_MODEL=gpt-4o-mini`<br>`OPENAI_API_KEY=...` | `pip install langchain-openai` | Pago |
+
+**Sem chave nenhuma, do zero:** instale o [Ollama](https://ollama.com), rode
+`ollama pull llama3.1`, `pip install langchain-ollama`, ponha as duas linhas do
+Ollama no `.env` e suba a API normalmente.
 
 ```bash
-python -m src.inspecionar_indice "sua pergunta"   # compara busca semântica vs híbrida
-python -m src.ver_chunks "360.000"                # busca literal dentro do índice
+python testar_api.py    # confirma qual provedor está ativo e se ele responde
 ```
 
-A distinção que elas permitem é essencial: se o trecho **está** no índice mas não
-é recuperado, o problema é a busca; se **não está**, o problema é a leitura do
-documento. Sem isso, a depuração vira adivinhação.
+> **Sobre a qualidade:** o prompt é rígido de propósito (não inventar, não
+> generalizar por analogia, citar artigo). Modelos menores — em especial os
+> locais de 7–8B — seguem essas regras com menos consistência. Se a resposta
+> ficar solta, vale comparar com um modelo maior antes de suspeitar da base.
+
+Quer um provedor que não está na lista? Qualquer um suportado pelo
+`init_chat_model` do LangChain funciona: instale o pacote e ponha o nome dele
+em `LLM_PROVIDER`.
 
 ---
 
@@ -227,6 +317,8 @@ com a regra inserida antes do `REJECT` da cadeia INPUT.
 ├── api.py                      # API FastAPI + serve o front
 ├── app.py                      # interface Streamlit (alternativa)
 ├── baixar_documentos.py        # baixa a base oficial automaticamente
+├── testar_api.py               # checa se o provedor de IA responde
+├── test_provedor.py            # teste offline da troca de provedor
 ├── web/                        # front-end
 │   ├── index.html
 │   ├── estilo.css
@@ -247,7 +339,7 @@ com a regra inserida antes do `REJECT` da cadeia INPUT.
 
 ## Tecnologias
 
-`Python` · `LangChain` · `Claude (Anthropic)` · `FAISS` · `sentence-transformers`
+`Python` · `LangChain` · `Claude · Gemini · Groq · Ollama (trocável)` · `FAISS` · `sentence-transformers`
 · `rank_bm25` · `BeautifulSoup` · `pypdf` · `FastAPI` · `Uvicorn` · `Streamlit`
 · `Oracle Cloud Infrastructure`
 

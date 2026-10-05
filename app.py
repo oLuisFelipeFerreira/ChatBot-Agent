@@ -15,7 +15,7 @@ from pathlib import Path
 import streamlit as st
 
 from src.ingest import build_vectorstore, INDEX_DIR
-from src.agent import load_agent, ask, formatar_fontes, DATA_BASE
+from src.agent import load_agent, ask, formatar_fontes, sem_resposta, DATA_BASE
 
 # ----------------------------------------------------------------------
 # Configuracao geral da pagina (titulo da aba, icone, layout)
@@ -146,8 +146,14 @@ if pergunta:
             resultado = ask(chain, pergunta)
             resposta = resultado["result"]
 
-            # Fontes vem dos METADADOS do indice (categoria + arquivo + pagina)
-            fontes = formatar_fontes(resultado["source_documents"])
+            # Fontes vem dos METADADOS do indice (categoria + arquivo + pagina).
+            # Se o agente nao achou a resposta, nao listamos fontes: nenhum
+            # documento embasou nada.
+            fontes = (
+                []
+                if sem_resposta(resposta)
+                else formatar_fontes(resultado["source_documents"])
+            )
 
         st.markdown(resposta)
         caixa_de_fontes(fontes)
