@@ -1,5 +1,17 @@
 langchain==0.3.*
+# --- Provedores do modelo de linguagem --------------------------------
+# O padrao e o Gemini, na camada gratuita. Vem instalado.
+#
+# ATENCAO a versao: langchain-google-genai 4.x exige langchain-core 1.x e
+# quebra o langchain 0.3 deste projeto. A faixa 2.1.* e a compativel.
+# Se voce "atualizar tudo" um dia e o projeto parar de importar, foi isto.
+langchain-google-genai==2.1.*
 langchain-anthropic==0.3.*
+#
+# Outros provedores, instale so se for usar (veja .env.example):
+#   pip install langchain-ollama   # local, de graca, sem chave nenhuma
+#   pip install langchain-groq     # Groq (camada gratuita)
+#   pip install langchain-openai   # GPT
 langchain-community==0.3.*
 langchain-huggingface==0.1.*
 sentence-transformers==3.*

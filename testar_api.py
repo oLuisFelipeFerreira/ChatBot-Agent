@@ -1,40 +1,30 @@
 """
-Teste rápido da API key do Claude (Anthropic).
+Teste rapido do modelo de linguagem configurado.
 
 O que este script faz:
-1. Le a variavel ANTHROPIC_API_KEY do arquivo .env
-2. Faz UMA pergunta simples ao Claude
+1. Le LLM_PROVIDER / LLM_MODEL e a chave correspondente do arquivo .env
+2. Faz UMA pergunta simples ao modelo
 3. Imprime a resposta
 
 Se aparecer uma resposta, sua chave e seu ambiente estao funcionando.
-Se der erro, a mensagem indica o que ajustar (chave errada, biblioteca
-faltando, sem internet, etc.).
+Se der erro, a mensagem indica o que ajustar (chave errada, pacote do
+provedor faltando, sem internet, etc.).
+
+Rode isto ANTES de subir a API: e a forma mais barata de descobrir que o
+.env esta errado, sem esperar o indice carregar.
 
 Uso:
     python testar_api.py
 """
 
-import os
-from dotenv import load_dotenv
-from langchain_anthropic import ChatAnthropic
+from src.agent import criar_llm, PROVEDOR, MODELO
 
-# Carrega as variaveis do arquivo .env para dentro do programa
-load_dotenv()
+print(f"Provedor: {PROVEDOR} | Modelo: {MODELO}")
+print("Enviando uma pergunta de teste...\n")
 
-# Confere se a chave existe antes de tentar usar
-if not os.getenv("ANTHROPIC_API_KEY"):
-    print("ERRO: nao encontrei a ANTHROPIC_API_KEY.")
-    print("Copie o arquivo .env.example para .env e cole sua chave nele.")
-    raise SystemExit(1)
-
-# Cria o cliente do modelo. claude-sonnet-5 e o modelo atual da linha Sonnet.
-llm = ChatAnthropic(model="claude-sonnet-5")
-
-print("Enviando uma pergunta de teste ao Claude...\n")
-
-# Faz uma unica chamada simples
+llm = criar_llm()
 resposta = llm.invoke("Responda em uma frase curta: voce esta funcionando?")
 
-print("Resposta do Claude:")
+print("Resposta do modelo:")
 print(resposta.content)
-print("\nTudo certo! Sua API key e seu ambiente estao funcionando.")
+print("\nTudo certo! Sua chave e seu ambiente estao funcionando.")

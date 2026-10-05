@@ -1,6 +1,8 @@
 """
-Monta a chain de recuperacao + resposta (RAG) usando Claude (Anthropic)
-como modelo de linguagem e o indice FAISS gerado pelo ingest.py.
+Monta a chain de recuperacao + resposta (RAG) sobre o indice FAISS gerado
+pelo ingest.py.
+
+O modelo de linguagem e trocavel: veja PROVEDOR/MODELO abaixo e o .env.example.
 """
 
 import os
@@ -8,7 +10,7 @@ from datetime import date
 from pathlib import Path
 
 from dotenv import load_dotenv
-from langchain_anthropic import ChatAnthropic
+from langchain.chat_models import init_chat_model
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.chains import RetrievalQA
@@ -24,16 +26,46 @@ load_dotenv()
 # contexto para o modelo ter chance de achar a resposta.
 TOP_K = 10
 
+# Qual modelo de linguagem usar. Trocavel pelo .env, sem mexer no codigo:
+#   LLM_PROVIDER=ollama        LLM_MODEL=llama3.1   -> local, sem chave
+#   LLM_PROVIDER=groq          LLM_MODEL=llama-3.3-70b-versatile
+#   LLM_PROVIDER=anthropic     LLM_MODEL=claude-haiku-4-5-20251001
+# Cada provedor exige seu pacote (langchain-ollama, langchain-groq...).
+# Veja .env.example.
+#
+# O padrao e o Gemini porque a camada gratuita dele cobre uma demo publica
+# sem custo. Os embeddings NAO dependem desta escolha -- rodam local
+# (HuggingFace), de graca, e trocar de modelo nao obriga a reindexar.
+PROVEDOR = os.getenv("LLM_PROVIDER", "google_genai")
+MODELO = os.getenv("LLM_MODEL", "gemini-3.8-flash")
+
+# Variavel de ambiente com a chave de cada provedor. Ollama roda na sua
+# maquina e nao usa chave nenhuma.
+CHAVE_DO_PROVEDOR = {
+    "anthropic": "ANTHROPIC_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "google_genai": "GOOGLE_API_KEY",
+    "groq": "GROQ_API_KEY",
+    "mistralai": "MISTRAL_API_KEY",
+    "ollama": None,
+}
+
 # Data da ultima atualizacao da base de documentos (exibida ao usuario).
 DATA_BASE = "agosto de 2026"
 
 # Multi-query: o modelo reescreve a pergunta em 3 versoes com vocabulario
-# juridico antes de buscar. Melhora bastante a recuperacao, MAS gasta uma
-# chamada extra de API por pergunta.
-# Coloque False para economizar chamadas ou se a API estiver sobrecarregada
-# (erro 529). A expansao de siglas do glossario continua funcionando de
-# qualquer forma -- ela e local e nao custa nada.
-USAR_MULTIQUERY = True
+# juridico antes de buscar. Melhora a recuperacao, MAS **dobra o numero de
+# chamadas por pergunta** -- uma para reescrever, outra para responder.
+#
+# Isso importa muito em camada gratuita, onde a cota e contada em
+# REQUISICOES por dia: com multi-query ligado, uma cota de 20/dia vira 10
+# perguntas. Por isso e configuravel pelo .env: ligado no seu computador,
+# onde voce quer a melhor recuperacao; desligado no servidor publico, onde
+# voce quer o maior numero de perguntas atendidas.
+#
+# A expansao de siglas do glossario continua funcionando de qualquer forma
+# -- ela e local, instantanea e nao custa chamada nenhuma.
+USAR_MULTIQUERY = os.getenv("USAR_MULTIQUERY", "1").lower() in {"1", "true", "sim"}
 
 # Prompt que "ancora" o modelo: ele so pode responder com base no contexto
 # recuperado, e deve admitir quando a resposta nao estiver ali.
@@ -78,6 +110,35 @@ PROMPT = PromptTemplate(
 )
 
 
+def criar_llm():
+    """Cria o modelo de linguagem escolhido em LLM_PROVIDER / LLM_MODEL.
+
+    init_chat_model importa o pacote do provedor na hora, entao o projeto
+    nao precisa depender de todos eles de uma vez.
+    """
+    chave = CHAVE_DO_PROVEDOR.get(PROVEDOR, f"{PROVEDOR.upper()}_API_KEY")
+    if chave and not os.getenv(chave):
+        raise EnvironmentError(
+            f"{chave} nao encontrada (LLM_PROVIDER={PROVEDOR}). Copie "
+            ".env.example para .env e preencha a chave -- ou troque o "
+            "provedor la (ollama roda local e nao pede chave)."
+        )
+
+    # max_retries/timeout: APIs remotas respondem 429 (limite de taxa) ou 529
+    # (sobrecarga) de vez em quando; sao erros passageiros e a propria
+    # biblioteca tenta de novo. Ollama roda local e nao aceita esses campos.
+    extras = {} if PROVEDOR == "ollama" else {"max_retries": 5, "timeout": 60}
+
+    try:
+        return init_chat_model(MODELO, model_provider=PROVEDOR, **extras)
+    except ImportError as erro:
+        raise ImportError(
+            f"Falta o pacote do provedor '{PROVEDOR}'. Instale-o "
+            f"(ex.: pip install langchain-{PROVEDOR.replace('_', '-')}) "
+            "ou troque LLM_PROVIDER no .env."
+        ) from erro
+
+
 def load_agent(index_dir: str = INDEX_DIR):
     """Carrega o indice salvo e monta a chain de perguntas e respostas."""
     if not Path(index_dir).exists():
@@ -85,11 +146,9 @@ def load_agent(index_dir: str = INDEX_DIR):
             f"Indice '{index_dir}' nao encontrado. Rode antes: python -m src.ingest"
         )
 
-    if not os.getenv("ANTHROPIC_API_KEY"):
-        raise EnvironmentError(
-            "ANTHROPIC_API_KEY nao encontrada. Copie .env.example para .env "
-            "e preencha com sua chave."
-        )
+    # Criado antes dos embeddings: se faltar chave ou pacote do provedor,
+    # falha em 1 segundo em vez de depois de carregar o modelo de embeddings.
+    llm = criar_llm()
 
     embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
     vectorstore = FAISS.load_local(
@@ -99,15 +158,6 @@ def load_agent(index_dir: str = INDEX_DIR):
     # Busca hibrida: palavra-chave (BM25) + semantica (FAISS).
     # Se os chunks salvos nao existirem (indice antigo), cai para a busca
     # semantica pura, avisando -- assim o app nao quebra.
-    # claude-haiku-4-5: modelo rapido e economico.
-    # max_retries: a API pode responder 529 (sobrecarga temporaria) ou 429
-    # (limite de taxa). Sao erros passageiros, entao a propria biblioteca
-    # tenta de novo, com espera crescente entre as tentativas.
-    llm = ChatAnthropic(
-        model="claude-haiku-4-5-20251001",
-        max_retries=5,
-        timeout=60,
-    )
 
     chunks = carregar_chunks()
     if chunks:
