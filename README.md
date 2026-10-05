@@ -179,8 +179,8 @@ Não é preciso instalar o `uvicorn` à parte: ele vem no `requirements.txt`.
 ### Linux / macOS
 
 ```bash
-git clone https://github.com/oLuisFelipeFerreira/alura-agent.git
-cd alura-agent
+git clone https://github.com/oLuisFelipeFerreira/ChatBot-Agent.git
+cd ChatBot-Agent
 
 python3 -m venv .venv
 source .venv/bin/activate
@@ -198,8 +198,8 @@ python -m uvicorn api:app --port 8000
 ### Windows (PowerShell)
 
 ```powershell
-git clone https://github.com/oLuisFelipeFerreira/alura-agent.git
-cd alura-agent
+git clone https://github.com/oLuisFelipeFerreira/ChatBot-Agent.git
+cd ChatBot-Agent
 
 python -m venv .venv
 .venv\Scripts\Activate.ps1

@@ -167,7 +167,7 @@ if pergunta:
 # Rodape institucional com links (LinkedIn e GitHub)
 # ----------------------------------------------------------------------
 LINKEDIN_URL = "https://www.linkedin.com/in/luís-felipe-barbosa-ferreira-33a0a9210"
-GITHUB_URL = "https://github.com/oLuisFelipeFerreira/alura-agent"
+GITHUB_URL = "https://github.com/oLuisFelipeFerreira/ChatBot-Agent"
 COR_RODAPE = "#2F6B4F"  # verde-floresta: mais escuro que os botoes, mas legivel
 
 # Icones desenhados em SVG (nao dependem de arquivo de imagem externo)
