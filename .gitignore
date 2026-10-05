@@ -15,3 +15,13 @@ faiss_index/
 
 # SO
 .DS_Store
+
+# Ferramental de agente (skills instaladas). Sao de terceiros e nao fazem
+# parte do projeto -- versionar isso enche o repositorio de centenas de
+# arquivos que escondem o codigo de quem vem olhar.
+.claude/
+.agents/
+skills-lock.json
+
+# Registro de perguntas (gerado em producao, nao vai para o repo)
+logs/
