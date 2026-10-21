@@ -20,7 +20,7 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import AIMessage, HumanMessage
 
-from .ingest import INDEX_DIR, EMBEDDING_MODEL, carregar_chunks
+from .ingest import INDEX_DIR, EMBEDDING_MODEL, PASTA_DADOS, carregar_chunks
 from .busca import montar_retriever_hibrido, montar_retriever_com_vigencia
 
 load_dotenv()
@@ -406,12 +406,46 @@ def truncar_na_recusa(texto: str) -> str:
     Posso ajudar com duvidas sobre Direito Empresarial brasileiro?".
     Isso e bom e fica. O que vem depois de uma linha em branco, nao.
 
+    LIMITE CONHECIDO: so corta o que vem DEPOIS de uma linha em branco.
+    Se o modelo recusar e continuar no MESMO paragrafo, nada e cortado.
+    Observado:
+
+        "Nao encontrei essa informacao nos documentos disponiveis. A
+         pergunta parece se referir a um caso especifico, mas nao ha
+         informacoes suficientes para responder."
+
+    Ali a continuacao era honesta, mas isso foi sorte, nao garantia.
+    Cortar na primeira frase resolveria -- e destruiria as recusas boas,
+    que costumam continuar na mesma linha de forma util. Entre perder uma
+    recusa util sempre e deixar passar uma invencao as vezes, fica assim;
+    a rede de seguranca real e a armadilha medida na avaliacao.
+
     Vale para QUALQUER modelo: o grande erra menos, nao erra nunca.
     """
     if not sem_resposta(texto):
         return texto
     paragrafos = texto.strip().split("\n\n")
     return paragrafos[0].strip()
+
+
+def _caminho_web(doc) -> str:
+    """Caminho do documento relativo a data/, com barras normais.
+
+    Serve para o front montar um link ate o arquivo original. Sem isto a
+    fonte e texto morto: o usuario le "pagina 39" e nao tem como conferir
+    -- e conferir e a promessa do produto.
+
+    Os metadados guardam o caminho no formato do sistema operacional, com
+    barras invertidas no Windows, que nao servem para URL.
+    """
+    bruto = str(doc.metadata.get("source", "")).replace("\\", "/")
+    if not bruto:
+        return ""
+    partes = bruto.split("/")
+    # Corta tudo ate a pasta de dados, inclusive -- o link e relativo a ela.
+    if PASTA_DADOS in partes:
+        partes = partes[partes.index(PASTA_DADOS) + 1:]
+    return "/".join(partes)
 
 
 def formatar_fontes(source_documents) -> list:
@@ -438,7 +472,10 @@ def formatar_fontes(source_documents) -> list:
         pagina = doc.metadata.get("page")
 
         chave = (categoria, arquivo)
-        dados = agrupado.setdefault(chave, {"paginas": set(), "trechos": []})
+        dados = agrupado.setdefault(
+            chave,
+            {"paginas": set(), "trechos": [], "caminho": _caminho_web(doc)},
+        )
         if pagina is not None:
             dados["paginas"].add(pagina + 1)
 
@@ -459,6 +496,7 @@ def formatar_fontes(source_documents) -> list:
                 "categoria": categoria,
                 "arquivo": arquivo,
                 "paginas": sorted(dados["paginas"]),
+                "caminho": dados["caminho"],
                 "trechos": dados["trechos"],
             }
         )

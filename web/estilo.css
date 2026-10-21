@@ -332,6 +332,61 @@ main {
 .fontes .categoria { color: var(--selo); font-weight: 600; }
 .fontes .paginas { color: #7C8B83; }
 
+/* O nome do arquivo e um LINK para o documento, na pagina citada.
+   Sublinhado discreto: precisa parecer clicavel sem competir com a
+   resposta, que e o que a pessoa veio ler. */
+.fontes .arquivo {
+  color: var(--tinta-2);
+  text-decoration: underline;
+  text-decoration-color: var(--filete);
+  text-underline-offset: 3px;
+  transition: text-decoration-color .15s, color .15s;
+}
+
+.fontes .arquivo:hover,
+.fontes .arquivo:focus-visible {
+  color: var(--selo);
+  text-decoration-color: var(--selo);
+}
+
+/* --- Trecho citado: a prova, recolhida por padrao ------------------- */
+
+.trechos {
+  flex-basis: 100%;
+  margin-top: 4px;
+}
+
+.trechos summary {
+  cursor: pointer;
+  font-size: .78rem;
+  color: #7C8B83;
+  padding: 2px 0;
+  list-style-position: inside;
+}
+
+.trechos summary:hover { color: var(--selo); }
+
+.trechos blockquote {
+  margin: 8px 0 0;
+  padding: 10px 14px;
+  background: #fff;
+  border-left: 3px solid var(--filete);
+  border-radius: 0 4px 4px 0;
+  font-size: .82rem;
+  line-height: 1.6;
+  color: var(--tinta-2);
+  white-space: pre-wrap;
+}
+
+.trechos .marca-pagina {
+  display: block;
+  font-family: "Archivo", sans-serif;
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--selo);
+  margin-bottom: 5px;
+}
+
 /* --- Ressalva e rodape --------------------------------------------- */
 
 .ressalva {

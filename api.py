@@ -107,6 +107,8 @@ class Fonte(BaseModel):
     categoria: str
     arquivo: str
     paginas: list[int]
+    # Caminho relativo a data/, para o front montar o link ate o documento.
+    caminho: str = ""
     # Sem declarar aqui, o response_model do FastAPI descartaria os trechos
     # em silencio -- sem erro, sem aviso, so sumiriam da resposta.
     trechos: list[Trecho] = Field(default_factory=list)
@@ -292,6 +294,17 @@ async def perguntar_stream(consulta: Consulta, request: Request):
             yield _evento("erro", aviso)
 
     return StreamingResponse(gerar(), media_type="application/x-ndjson")
+
+
+# --- Documentos originais ----------------------------------------------
+# Servir data/ e o que torna a fonte VERIFICAVEL: o front monta um link
+# para o arquivo na pagina citada, e o usuario confere a resposta contra o
+# documento oficial. Sem isto, "pagina 39" e texto morto.
+#
+# Expor a pasta inteira e aceitavel aqui porque sao documentos publicos do
+# governo -- e justamente o que o projeto promete mostrar.
+if Path(PASTA_DADOS).exists():
+    app.mount("/documentos", StaticFiles(directory=PASTA_DADOS), name="documentos")
 
 
 # --- Front-end estatico -------------------------------------------------
