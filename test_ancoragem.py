@@ -72,6 +72,20 @@ def test_nao_mexe_em_resposta_valida():
     assert truncar_na_recusa(boa) == boa
 
 
+def test_nao_corta_continuacao_no_mesmo_paragrafo():
+    """Limite conhecido, registrado de proposito.
+
+    O corte e por paragrafo. Uma continuacao na MESMA linha passa. Este
+    teste existe para que o limite seja uma decisao consciente, e nao uma
+    surpresa -- se um dia a regra mudar, ele quebra e obriga a pensar.
+    """
+    mesmo_paragrafo = (
+        "Não encontrei essa informação nos documentos disponíveis. "
+        "A pergunta parece se referir a um caso específico."
+    )
+    assert truncar_na_recusa(mesmo_paragrafo) == mesmo_paragrafo
+
+
 if __name__ == "__main__":
     for nome, funcao in list(globals().items()):
         if nome.startswith("test_"):
