@@ -70,8 +70,24 @@ async def ciclo_de_vida(app: FastAPI):
 app = FastAPI(title="Assistente Empresarial", lifespan=ciclo_de_vida)
 
 
+class Troca(BaseModel):
+    """Uma pergunta ja feita e a resposta que ela recebeu."""
+    pergunta: str = Field(max_length=500)
+    resposta: str = Field(max_length=5000)
+
+
 class Consulta(BaseModel):
     pergunta: str = Field(min_length=3, max_length=500)
+
+    # O historico vem do CLIENTE, nao de uma sessao no servidor. A API
+    # continua sem estado: nada para limpar, nada que se perca no restart,
+    # e funciona igual com varios processos.
+    #
+    # O preco de confiar no cliente e que ele pode mandar qualquer coisa --
+    # inclusive um historico enorme, que encareceria a chamada. Por isso o
+    # teto aqui: max_length corta o numero de trocas, e os limites de Troca
+    # cortam o tamanho de cada uma.
+    historico: list[Troca] = Field(default_factory=list, max_length=10)
 
 
 class Fonte(BaseModel):
@@ -102,7 +118,11 @@ def perguntar(consulta: Consulta, request: Request):
         raise HTTPException(status_code=503, detail="O agente ainda está carregando.")
 
     try:
-        resultado = ask(chain, consulta.pergunta)
+        resultado = ask(
+            chain,
+            consulta.pergunta,
+            historico=[t.model_dump() for t in consulta.historico],
+        )
     except Exception as erro:
         print(f"Erro ao consultar o agente: {erro}")
         texto_erro = str(erro).lower()

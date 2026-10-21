@@ -13,8 +13,10 @@ from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain.chains import RetrievalQA
-from langchain.prompts import PromptTemplate
+from langchain.chains import create_retrieval_chain, create_history_aware_retriever
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.messages import AIMessage, HumanMessage
 
 from .ingest import INDEX_DIR, EMBEDDING_MODEL, carregar_chunks
 from .busca import montar_retriever_hibrido
@@ -98,16 +100,57 @@ REGRAS OBRIGATÓRIAS:
 8. Nunca afirme o que o usuário "deve fazer" no caso concreto dele — explique o
    que a norma diz e sugira confirmar com um profissional quando o caso for específico.
 
+9. Se a pergunta se apoiar no que ja foi conversado ("e para ME?", "e se eu
+   passar disso?"), entenda a referencia pelo historico, mas continue
+   obedecendo a regra 1: so afirme o que estiver no contexto abaixo.
+
 Contexto:
-{context}
+{context}"""
 
-Pergunta: {question}
+PROMPT = ChatPromptTemplate.from_messages([
+    ("system", PROMPT_TEMPLATE),
+    MessagesPlaceholder("chat_history"),
+    ("human", "{input}"),
+])
 
-Resposta:"""
+# Quantas trocas (pergunta + resposta) do historico entram no prompt.
+# Mais do que isso encarece cada chamada sem melhorar a continuidade: em
+# duvida juridica, o fio da conversa raramente passa de duas ou tres voltas.
+MAX_HISTORICO = 4
 
-PROMPT = PromptTemplate(
-    template=PROMPT_TEMPLATE, input_variables=["context", "question"]
-)
+# Antes de buscar, o modelo reescreve a pergunta como se ela fosse unica.
+# "e se eu passar do limite?" vira "o que acontece se o MEI ultrapassar o
+# limite de faturamento?". Sem isso, o buscador recebe uma frase sem sujeito
+# e traz lixo -- nenhuma busca, por melhor que seja, acha o que nao foi dito.
+PROMPT_CONTEXTUALIZAR = ChatPromptTemplate.from_messages([
+    ("system",
+     "Dado o historico da conversa e a ultima pergunta do usuario, reescreva "
+     "a pergunta de forma que ela seja compreensivel SOZINHA, sem o "
+     "historico. Resolva pronomes e referencias implicitas usando os termos "
+     "da conversa. NAO responda a pergunta, NAO explique: devolva apenas a "
+     "pergunta reescrita. Se ela ja for independente, devolva-a como esta."),
+    MessagesPlaceholder("chat_history"),
+    ("human", "{input}"),
+])
+
+
+def montar_historico(historico) -> list:
+    """Converte [{'pergunta':..., 'resposta':...}] em mensagens do LangChain.
+
+    Corta as trocas mais antigas, mantendo as ultimas MAX_HISTORICO -- o fim
+    da conversa e o que da sentido a pergunta atual.
+    """
+    if not historico:
+        return []
+    mensagens = []
+    for troca in historico[-MAX_HISTORICO:]:
+        pergunta = (troca.get("pergunta") or "").strip()
+        resposta = (troca.get("resposta") or "").strip()
+        if pergunta:
+            mensagens.append(HumanMessage(content=pergunta))
+        if resposta:
+            mensagens.append(AIMessage(content=resposta))
+    return mensagens
 
 
 def criar_llm():
@@ -174,22 +217,41 @@ def load_agent(index_dir: str = INDEX_DIR):
         )
         retriever = vectorstore.as_retriever(search_kwargs={"k": TOP_K})
 
-    chain = RetrievalQA.from_chain_type(
-        llm=llm,
-        retriever=retriever,
-        return_source_documents=True,
-        chain_type_kwargs={"prompt": PROMPT},
+    # Duas partes:
+    #   - responder: recebe os trechos ja encontrados e escreve a resposta
+    #   - create_retrieval_chain: busca os trechos e passa para o responder
+    # Separar as duas e o que permite, adiante, reescrever a pergunta com o
+    # historico antes de buscar, e transmitir a resposta em pedacos.
+    # Reescreve a pergunta com base no historico ANTES de buscar.
+    # Detalhe que importa para a cota: o LangChain so chama o modelo para
+    # reescrever quando ha historico. Primeira pergunta da conversa nao
+    # paga nada a mais.
+    retriever_com_historico = create_history_aware_retriever(
+        llm, retriever, PROMPT_CONTEXTUALIZAR
     )
-    return chain
+
+    responder = create_stuff_documents_chain(llm, PROMPT)
+    return create_retrieval_chain(retriever_com_historico, responder)
 
 
-def ask(chain, pergunta: str) -> dict:
+def ask(chain, pergunta: str, historico=None) -> dict:
     """Faz uma pergunta ao agente.
 
     Devolve um dicionario com a resposta ('result') e os trechos de
     documento usados ('source_documents'), para citar a fonte.
+
+    A cadeia moderna devolve as chaves 'answer' e 'context'; traduzimos
+    aqui para os nomes que o resto do projeto ja usa. Assim a troca da
+    cadeia nao obriga a mexer na API, no terminal e no Streamlit de uma vez.
     """
-    return chain.invoke({"query": pergunta})
+    resultado = chain.invoke({
+        "input": pergunta,
+        "chat_history": montar_historico(historico),
+    })
+    return {
+        "result": resultado["answer"],
+        "source_documents": resultado["context"],
+    }
 
 
 # Frase exata que o prompt manda o modelo usar quando nao acha a resposta.
