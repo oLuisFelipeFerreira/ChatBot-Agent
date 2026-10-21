@@ -1,0 +1,320 @@
+{
+  "resumo": {
+    "quando": "2026-10-21T11:01:14",
+    "provedor": "ollama",
+    "modelo": "llama3.2:3b",
+    "top_k": 4,
+    "multiquery": false,
+    "total": 15,
+    "passou": 12,
+    "recusa_correta": 1.0,
+    "fonte_correta": 1.0,
+    "conteudo_correto": 0.75,
+    "armadilha_evitada": 0.5,
+    "segundos_mediana": 25.7
+  },
+  "casos": [
+    {
+      "id": "mei-limite",
+      "pergunta": "Qual o limite de faturamento anual do MEI?",
+      "espera": "resposta",
+      "passou": true,
+      "checagens": {
+        "recusa": true,
+        "fonte": true,
+        "conteudo": true
+      },
+      "falhou_em": [],
+      "segundos": 25.3,
+      "fontes": [
+        "lc123_simples_nacional.html",
+        "mei_manual_dasn.pdf",
+        "mei_perguntas_respostas.pdf",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "O limite de faturamento anual do MEI é de R$ 81.000,00.",
+      "erro": null
+    },
+    {
+      "id": "mei-valor-mensal",
+      "pergunta": "Quanto o MEI paga por mes?",
+      "espera": "resposta",
+      "passou": false,
+      "checagens": {
+        "recusa": true,
+        "fonte": true,
+        "conteudo": false,
+        "armadilha": false
+      },
+      "falhou_em": [
+        "conteudo",
+        "armadilha"
+      ],
+      "segundos": 70.0,
+      "fontes": [
+        "lc123_simples_nacional.html",
+        "mei_manual_dasn.pdf",
+        "mei_perguntas_respostas.pdf",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "Conforme o artigo 18-A da LC 123/2006 e Resolução CGSN n. 140/2018, o MEI paga um valor fixo mensal correspondente à soma das seguintes parcelas:\n\na) R$ 45,65 (quarenta e cinco reais e sessenta e cinco centavos), a título da contribuição prevista no inciso IV do art. 13 da Lei Complementar nº 155/2016;\nb) R$ 1,00 (um real), a título do imposto referido no inciso VII do caput do art. 13 da Lei Complementar nº 155/2016, caso seja contribuinte do ICMS;\nc) R$ 5,00 (cinco reais), a título do imposto referido no inciso VIII do caput do art. 13 da Lei Complementar nº 155/2016, caso seja contribuinte do ISS.\n\nPortanto, o valor fixo mensal do MEI é a soma dessas três parcelas: R$ 45,65 + R$ 1,00 + R$ 5,00 = R$ 51,65.",
+      "erro": null
+    },
+    {
+      "id": "porte-me-epp",
+      "pergunta": "Qual a diferenca entre MEI, ME e EPP?",
+      "espera": "resposta",
+      "passou": true,
+      "checagens": {
+        "recusa": true,
+        "fonte": true,
+        "conteudo": true
+      },
+      "falhou_em": [],
+      "segundos": 106.6,
+      "fontes": [
+        "manual_empresario_individual.pdf",
+        "manual_sociedade_limitada.pdf",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "A diferença entre MEI, ME e EPP está relacionada ao porte (faixa de receita bruta anual) e ao regime tributário.\n\n**MEI (Microempresa de Pequeno Porte com Regime Tributário Simplificado)**\n\n* É um tipo de empresa que se enquadra no Simples Nacional, que é um regime tributário simplificado.\n* Tem como limite de receita bruta anual R$ 81.000,00.\n* É obrigatório vincular-se ao Simples Nacional.\n* Não é uma categoria separada, mas sim uma exceção ao regime tributário, pois é um empresário individual enquadrado no Simples Nacional.\n\n**ME (Microempresa)**\n\n* É uma categoria de empresas que se enquadra no Simples Nacional ou no Lucro Presumido, dependendo da faixa de receita bruta anual.\n* Tem como limite de receita bruta anual R$ 360.000,00.\n* Não é obrigatório vincular-se ao Simples Nacional, mas pode optar por ele.\n\n**EPP (Empresa de Pequeno Porte)**\n\n* É uma categoria de empresas que se enquadra no Lucro Presumido ou no Lucro Real, dependendo da faixa de receita bruta anual.\n* Tem como limite de receita bruta anual R$ 4.800.000,00.\n* Não é obrigatório vincular-se ao Simples Nacional, mas pode optar por ele.\n\nEm resumo, a principal diferença entre MEI, ME e EPP é que o MEI é uma exceção ao regime tributário, enquanto as outras duas categorias são categorias separadas com limites de receita bruta anual diferentes.",
+      "erro": null
+    },
+    {
+      "id": "eireli-extinta",
+      "pergunta": "Posso abrir uma EIRELI?",
+      "espera": "resposta",
+      "passou": true,
+      "checagens": {
+        "recusa": true,
+        "fonte": true,
+        "conteudo": true
+      },
+      "falhou_em": [],
+      "segundos": 25.5,
+      "fontes": [
+        "codigo_civil.html",
+        "manual_empresario_individual.pdf",
+        "mei_perguntas_respostas.pdf",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "Não. A Empresa Individual de Responsabilidade Limitada (EIRELI) foi EXTINTA do ordenamento juridico brasileiro.",
+      "erro": null
+    },
+    {
+      "id": "me-nao-e-regime",
+      "pergunta": "Toda microempresa precisa estar no Simples Nacional?",
+      "espera": "resposta",
+      "passou": true,
+      "checagens": {
+        "recusa": true,
+        "fonte": true,
+        "conteudo": true
+      },
+      "falhou_em": [],
+      "segundos": 14.3,
+      "fontes": [
+        "lc123_simples_nacional.html",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "Não, toda microempresa não precisa estar no Simples Nacional. A opção pelo Simples Nacional é uma escolha que pode ser feita por uma microempresa, mas não é obrigatória. A microempresa pode optar pelo Simples Nacional ou optar por outro regime tributário, como o Lucro Presumido ou o Lucro Real.",
+      "erro": null
+    },
+    {
+      "id": "analogia-me-valor-fixo",
+      "pergunta": "A ME paga um valor fixo mensal como o MEI?",
+      "espera": "resposta",
+      "passou": true,
+      "checagens": {
+        "recusa": true,
+        "armadilha": true
+      },
+      "falhou_em": [],
+      "segundos": 37.0,
+      "fontes": [
+        "mei_manual_dasn.pdf",
+        "mei_perguntas_respostas.pdf",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "Não. A ME não paga um valor fixo mensal como o MEI.",
+      "erro": null
+    },
+    {
+      "id": "conceito-empresario",
+      "pergunta": "O que define juridicamente um empresario?",
+      "espera": "resposta",
+      "passou": true,
+      "checagens": {
+        "recusa": true,
+        "fonte": true,
+        "conteudo": true
+      },
+      "falhou_em": [],
+      "segundos": 33.0,
+      "fontes": [
+        "codigo_civil.html",
+        "lc123_simples_nacional.html",
+        "manual_empresario_individual.pdf",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "Conforme o art. 966 do Código Civil, um empresário é quem exerce profissionalmente atividade econômica organizada para a produção ou a circulação de bens ou de serviços.",
+      "erro": null
+    },
+    {
+      "id": "desenquadramento",
+      "pergunta": "O que acontece se o MEI ultrapassar o limite de faturamento?",
+      "espera": "resposta",
+      "passou": false,
+      "checagens": {
+        "recusa": true,
+        "fonte": true,
+        "conteudo": false
+      },
+      "falhou_em": [
+        "conteudo"
+      ],
+      "segundos": 10.7,
+      "fontes": [
+        "mei_manual_dasn.pdf",
+        "mei_perguntas_respostas.pdf",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "Se o MEI ultrapassar o limite de faturamento, ele não será considerado mais como MEI e, portanto, não poderá mais optar pelo Simples Nacional.",
+      "erro": null
+    },
+    {
+      "id": "transportador-12",
+      "pergunta": "Quanto paga de INSS o MEI transportador autonomo de cargas?",
+      "espera": "resposta",
+      "passou": true,
+      "checagens": {
+        "recusa": true,
+        "fonte": true,
+        "conteudo": true
+      },
+      "falhou_em": [],
+      "segundos": 11.2,
+      "fontes": [
+        "lc123_simples_nacional.html",
+        "mei_manual_dasn.pdf",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "O MEI transportador autonomo de cargas paga 12% do salário-mínimo como contribuição previdenciária, conforme a Resolução CGSN n. 165/2022.",
+      "erro": null
+    },
+    {
+      "id": "registro-ltda",
+      "pergunta": "Como registrar uma sociedade limitada?",
+      "espera": "resposta",
+      "passou": false,
+      "checagens": {
+        "recusa": false,
+        "fonte": true
+      },
+      "falhou_em": [
+        "recusa"
+      ],
+      "segundos": 3.7,
+      "fontes": [
+        "codigo_civil.html",
+        "manual_sociedade_limitada.pdf",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "Não encontrei essa informação nos documentos disponíveis.",
+      "erro": null
+    },
+    {
+      "id": "fora-capital-franca",
+      "pergunta": "Qual a capital da Franca?",
+      "espera": "recusa",
+      "passou": true,
+      "checagens": {
+        "recusa": true
+      },
+      "falhou_em": [],
+      "segundos": 35.1,
+      "fontes": [
+        "manual_empresario_individual.pdf",
+        "manual_sociedade_limitada.pdf",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "Não encontrei essa informação nos documentos disponíveis. A capital da França é Paris.",
+      "erro": null
+    },
+    {
+      "id": "fora-irpf",
+      "pergunta": "Como faco minha declaracao de imposto de renda pessoa fisica?",
+      "espera": "recusa",
+      "passou": true,
+      "checagens": {
+        "recusa": true
+      },
+      "falhou_em": [],
+      "segundos": 26.9,
+      "fontes": [
+        "lc123_simples_nacional.html",
+        "mei_manual_dasn.pdf",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "Não encontrei essa informação nos documentos disponíveis.",
+      "erro": null
+    },
+    {
+      "id": "fora-ipva",
+      "pergunta": "Qual a aliquota do IPVA no meu estado?",
+      "espera": "recusa",
+      "passou": true,
+      "checagens": {
+        "recusa": true
+      },
+      "falhou_em": [],
+      "segundos": 25.7,
+      "fontes": [
+        "lc123_simples_nacional.html",
+        "mei_manual_dasn.pdf",
+        "mei_perguntas_respostas.pdf",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "Não encontrei essa informação nos documentos disponíveis.",
+      "erro": null
+    },
+    {
+      "id": "fora-portugal",
+      "pergunta": "Como abro uma empresa em Portugal?",
+      "espera": "recusa",
+      "passou": true,
+      "checagens": {
+        "recusa": true
+      },
+      "falhou_em": [],
+      "segundos": 4.6,
+      "fontes": [
+        "codigo_civil.html",
+        "in_drei_81.pdf",
+        "manual_empresario_individual.pdf",
+        "manual_sociedade_limitada.pdf",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "Não encontrei informações nos documentos disponíveis sobre como abrir uma empresa em Portugal.",
+      "erro": null
+    },
+    {
+      "id": "fora-clt-ferias",
+      "pergunta": "Quantos dias de ferias o empregado CLT tem direito?",
+      "espera": "recusa",
+      "passou": true,
+      "checagens": {
+        "recusa": true
+      },
+      "falhou_em": [],
+      "segundos": 27.8,
+      "fontes": [
+        "in_drei_81.pdf",
+        "mei_perguntas_respostas.pdf",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "Não encontrei essa informação nos documentos disponíveis.",
+      "erro": null
+    }
+  ]
+}

@@ -1,0 +1,328 @@
+{
+  "resumo": {
+    "quando": "2026-10-21T11:24:02",
+    "provedor": "ollama",
+    "modelo": "llama3.2:3b",
+    "top_k": 10,
+    "multiquery": false,
+    "total": 15,
+    "passou": 13,
+    "recusa_correta": 1.0,
+    "fonte_correta": 1.0,
+    "conteudo_correto": 0.75,
+    "armadilha_evitada": 0.5,
+    "segundos_mediana": 61.8
+  },
+  "casos": [
+    {
+      "id": "mei-limite",
+      "pergunta": "Qual o limite de faturamento anual do MEI?",
+      "espera": "resposta",
+      "passou": true,
+      "checagens": {
+        "recusa": true,
+        "fonte": true,
+        "conteudo": true
+      },
+      "falhou_em": [],
+      "segundos": 88.4,
+      "fontes": [
+        "lc123_simples_nacional.html",
+        "mei_manual_dasn.pdf",
+        "mei_perguntas_respostas.pdf",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "O limite de faturamento anual do MEI é de R$ 81.000,00.",
+      "erro": null
+    },
+    {
+      "id": "mei-valor-mensal",
+      "pergunta": "Quanto o MEI paga por mes?",
+      "espera": "resposta",
+      "passou": false,
+      "checagens": {
+        "recusa": true,
+        "fonte": true,
+        "conteudo": false,
+        "armadilha": false
+      },
+      "falhou_em": [
+        "conteudo",
+        "armadilha"
+      ],
+      "segundos": 156.5,
+      "fontes": [
+        "lc123_simples_nacional.html",
+        "mei_manual_dasn.pdf",
+        "mei_perguntas_respostas.pdf",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "O valor que o MEI paga por mês varia dependendo do tipo de MEI e do regime tributário ao qual está vinculado.\n\nPara o MEI que optou pelo Simples Nacional (Simei), o valor a pagar por mês é o valor fixo mensal correspondente à soma das seguintes parcelas:\n\n* R$ 45,65 (quarenta e cinco reais e sessenta e cinco centavos), a título da contribuição prevista no inciso IV do art. 13 da Lei Complementar nº 155/2016;\n* R$ 1,00 (um real), a título do imposto referido no inciso VII do caput do art. 13 da Lei Complementar nº 155/2016, caso seja contribuinte do ICMS;\n* R$ 5,00 (cinco reais), a título do imposto referido no inciso VIII do caput do art. 13 da Lei Complementar nº 155/2016, caso seja contribuinte do ISS.\n\nPortanto, o valor total a pagar por mês para o MEI que optou pelo Simples Nacional é a soma dessas três parcelas.\n\nJá para o MEI transportador autônomo de cargas, o valor a pagar por mês é diferente, pois é calculado com base na contribuição previdenciária e no imposto de renda.",
+      "erro": null
+    },
+    {
+      "id": "porte-me-epp",
+      "pergunta": "Qual a diferenca entre MEI, ME e EPP?",
+      "espera": "resposta",
+      "passou": true,
+      "checagens": {
+        "recusa": true,
+        "fonte": true,
+        "conteudo": true
+      },
+      "falhou_em": [],
+      "segundos": 216.7,
+      "fontes": [
+        "manual_empresario_individual.pdf",
+        "manual_sociedade_limitada.pdf",
+        "mei_manual_dasn.pdf",
+        "mei_perguntas_respostas.pdf",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "O MEI (Microempreendedor Individual), o ME (Microempreendedor) e a EPP (Empresa de Pequeno Porte) são categorias de empresas que são tratadas de forma especial pela legislação tributária brasileira.\n\nA principal diferença entre essas categorias é o valor da receita bruta anual, que é o critério para determinar a faixa de receita que cada empresa deve pagar.\n\n*   O MEI (Microempreendedor Individual) é uma categoria que se aplica a empresas que têm receita bruta anual igual ou inferior a R$ 81.000,00. O MEI é obrigado a pagar impostos sobre sua receita, mas tem benefícios fiscais, como a isenção do ICMS e do IPI, e a redução da alíquota do ISS.\n*   O ME (Microempreendedor) é uma categoria que se aplica a empresas que têm receita bruta anual igual ou superior a R$ 81.000,00 e inferior a R$ 360.000,00. O ME é obrigado a pagar impostos sobre sua receita, mas também tem benefícios fiscais, como a isenção do ICMS e do IPI, e a redução da alíquota do ISS.\n*   A EPP (Empresa de Pequeno Porte) é uma categoria que se aplica a empresas que têm receita bruta anual igual ou superior a R$ 360.000,00 e inferior a R$ 4.800.000,00. A EPP é obrigada a pagar impostos sobre sua receita, mas também tem benefícios fiscais, como a isenção do ICMS e do IPI, e a redução da alíquota do ISS.\n\nEm resumo, a principal diferença entre MEI, ME e EPP é o valor da receita bruta anual, que determina a faixa de receita que cada empresa deve pagar.",
+      "erro": null
+    },
+    {
+      "id": "eireli-extinta",
+      "pergunta": "Posso abrir uma EIRELI?",
+      "espera": "resposta",
+      "passou": true,
+      "checagens": {
+        "recusa": true,
+        "fonte": true,
+        "conteudo": true
+      },
+      "falhou_em": [],
+      "segundos": 54.6,
+      "fontes": [
+        "codigo_civil.html",
+        "lc123_simples_nacional.html",
+        "manual_empresario_individual.pdf",
+        "mei_perguntas_respostas.pdf",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "Não. A Empresa Individual de Responsabilidade Limitada (EIRELI) foi EXTINTA do ordenamento jurídico brasileiro.",
+      "erro": null
+    },
+    {
+      "id": "me-nao-e-regime",
+      "pergunta": "Toda microempresa precisa estar no Simples Nacional?",
+      "espera": "resposta",
+      "passou": true,
+      "checagens": {
+        "recusa": true,
+        "fonte": true,
+        "conteudo": true
+      },
+      "falhou_em": [],
+      "segundos": 48.9,
+      "fontes": [
+        "lc123_simples_nacional.html",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "Não, toda microempresa não precisa estar no Simples Nacional. A opção pelo Simples Nacional é uma escolha que pode ser feita por uma microempresa, mas não é obrigatória. A microempresa pode optar pelo Simples Nacional se atender aos requisitos estabelecidos na Lei Complementar nº 123/2006, que inclui ter receita bruta anual dentro dos limites estabelecidos para a categoria de microempresa (R$ 360.000,00 ou menos).",
+      "erro": null
+    },
+    {
+      "id": "analogia-me-valor-fixo",
+      "pergunta": "A ME paga um valor fixo mensal como o MEI?",
+      "espera": "resposta",
+      "passou": true,
+      "checagens": {
+        "recusa": true,
+        "armadilha": true
+      },
+      "falhou_em": [],
+      "segundos": 76.9,
+      "fontes": [
+        "mei_manual_dasn.pdf",
+        "mei_perguntas_respostas.pdf",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "Não. A MEI (Microempresa de Intermédio) paga um valor fixo mensal, mas isso é diferente do valor fixo mensal pago pelo MEI (Microempreendedor Individual).",
+      "erro": null
+    },
+    {
+      "id": "conceito-empresario",
+      "pergunta": "O que define juridicamente um empresario?",
+      "espera": "resposta",
+      "passou": true,
+      "checagens": {
+        "recusa": true,
+        "fonte": true,
+        "conteudo": true
+      },
+      "falhou_em": [],
+      "segundos": 56.1,
+      "fontes": [
+        "codigo_civil.html",
+        "lc123_simples_nacional.html",
+        "manual_empresario_individual.pdf",
+        "manual_sociedade_limitada.pdf",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "Conforme o art. 966 do Código Civil, um empresário é quem exerce profissionalmente atividade econômica organizada para a produção ou a circulação de bens ou de serviços.",
+      "erro": null
+    },
+    {
+      "id": "desenquadramento",
+      "pergunta": "O que acontece se o MEI ultrapassar o limite de faturamento?",
+      "espera": "resposta",
+      "passou": false,
+      "checagens": {
+        "recusa": true,
+        "fonte": true,
+        "conteudo": false
+      },
+      "falhou_em": [
+        "conteudo"
+      ],
+      "segundos": 82.1,
+      "fontes": [
+        "lc123_simples_nacional.html",
+        "mei_manual_dasn.pdf",
+        "mei_perguntas_respostas.pdf",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "Se o MEI ultrapassar o limite de faturamento, ele fica impedido de recolher o ICMS ou o ISS pela sistemática de valor fixo, a partir do mês subsequente à ocorrência do excesso, sujeitando-se à apuração desses tributos na forma das demais empresas optantes pelo Simples Nacional.",
+      "erro": null
+    },
+    {
+      "id": "transportador-12",
+      "pergunta": "Quanto paga de INSS o MEI transportador autonomo de cargas?",
+      "espera": "resposta",
+      "passou": true,
+      "checagens": {
+        "recusa": true,
+        "fonte": true,
+        "conteudo": true
+      },
+      "falhou_em": [],
+      "segundos": 61.8,
+      "fontes": [
+        "lc123_simples_nacional.html",
+        "mei_manual_dasn.pdf",
+        "mei_perguntas_respostas.pdf",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "O MEI transportador autônomo de cargas paga 12% do salário mínimo como contribuição previdenciária.",
+      "erro": null
+    },
+    {
+      "id": "registro-ltda",
+      "pergunta": "Como registrar uma sociedade limitada?",
+      "espera": "resposta",
+      "passou": true,
+      "checagens": {
+        "recusa": true,
+        "fonte": true
+      },
+      "falhou_em": [],
+      "segundos": 183.0,
+      "fontes": [
+        "codigo_civil.html",
+        "in_drei_81.pdf",
+        "manual_sociedade_limitada.pdf",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "Para registrar uma sociedade limitada, você precisará seguir os seguintes passos:\n\n1.  **Contrato Social**: O contrato social é o documento que define a estrutura e as regras da sociedade. Ele deve ser assinado pelos sócios ou seus procuradores ou certidão de inteiro teor do instrumento, quando revestir a forma pública.\n2.  **Registro na Junta Comercial**: O contrato social deve ser registrado na Junta Comercial da cidade onde a sociedade será sediada. Isso é feito por meio de um pedido de registro, que deve ser apresentado junto com os documentos necessários, como o contrato social, a carteira de identidade dos sócios e a carteira de identidade do administrador.\n3.  **Inscrição no Cadastro Nacional da Pessoa Jurídica (CNPJ)**: A sociedade limitada deve ser inscrita no CNPJ, que é o registro único das pessoas jurídicas no Brasil. Isso é feito por meio de um pedido de inscrição, que deve ser apresentado junto com os documentos necessários, como o contrato social e a carteira de identidade do administrador.\n4.  **Registro no Registro Civil**: A sociedade limitada também deve ser registrada no Registro Civil, que é o registro das pessoas jurídicas no estado onde a sociedade será sediada. Isso é feito por meio de um pedido de registro, que deve ser apresentado junto com os documentos necessários, como o contrato social e a carteira de identidade do administrador.\n\n**Observações**:\n\n*   O contrato social deve ser assinado por todos os sócios e o administrador.\n*   A sociedade limitada pode ser constituída por uma ou mais pessoas.\n*   A unipessoalidade permitida pelo § 1º do art. 1.052 do Código Civil pode decorrer de constituição originária, saída de sócios da sociedade por meio de alteração contratual, bem como de transformação, fusão, cisão, conversão, etc.\n*   O contrato social deve mencionar a firma social e a denominação da sociedade.\n*   A administração da sociedade compete exclusivamente a sócios.\n*   O credor particular de sócio não pode, antes de dissolver-se a sociedade, pretender a liquidação da quota do devedor.",
+      "erro": null
+    },
+    {
+      "id": "fora-capital-franca",
+      "pergunta": "Qual a capital da Franca?",
+      "espera": "recusa",
+      "passou": true,
+      "checagens": {
+        "recusa": true
+      },
+      "falhou_em": [],
+      "segundos": 55.4,
+      "fontes": [
+        "manual_empresario_individual.pdf",
+        "manual_sociedade_limitada.pdf",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "Não encontrei essa informação nos documentos disponíveis.",
+      "erro": null
+    },
+    {
+      "id": "fora-irpf",
+      "pergunta": "Como faco minha declaracao de imposto de renda pessoa fisica?",
+      "espera": "recusa",
+      "passou": true,
+      "checagens": {
+        "recusa": true
+      },
+      "falhou_em": [],
+      "segundos": 56.1,
+      "fontes": [
+        "lc123_simples_nacional.html",
+        "mei_manual_dasn.pdf",
+        "mei_perguntas_respostas.pdf",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "Não encontrei essa informação nos documentos disponíveis.",
+      "erro": null
+    },
+    {
+      "id": "fora-ipva",
+      "pergunta": "Qual a aliquota do IPVA no meu estado?",
+      "espera": "recusa",
+      "passou": true,
+      "checagens": {
+        "recusa": true
+      },
+      "falhou_em": [],
+      "segundos": 68.9,
+      "fontes": [
+        "lc123_simples_nacional.html",
+        "mei_manual_dasn.pdf",
+        "mei_perguntas_respostas.pdf",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "Não encontrei essa informação nos documentos disponíveis.",
+      "erro": null
+    },
+    {
+      "id": "fora-portugal",
+      "pergunta": "Como abro uma empresa em Portugal?",
+      "espera": "recusa",
+      "passou": true,
+      "checagens": {
+        "recusa": true
+      },
+      "falhou_em": [],
+      "segundos": 41.2,
+      "fontes": [
+        "codigo_civil.html",
+        "in_drei_81.pdf",
+        "manual_empresario_individual.pdf",
+        "manual_sociedade_limitada.pdf",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "Não encontrei essa informação nos documentos disponíveis.",
+      "erro": null
+    },
+    {
+      "id": "fora-clt-ferias",
+      "pergunta": "Quantos dias de ferias o empregado CLT tem direito?",
+      "espera": "recusa",
+      "passou": true,
+      "checagens": {
+        "recusa": true
+      },
+      "falhou_em": [],
+      "segundos": 52.9,
+      "fontes": [
+        "codigo_civil.html",
+        "in_drei_81.pdf",
+        "manual_sociedade_limitada.pdf",
+        "mei_perguntas_respostas.pdf",
+        "notas_de_vigencia.txt"
+      ],
+      "resposta": "Não encontrei essa informação nos documentos disponíveis.",
+      "erro": null
+    }
+  ]
+}
