@@ -270,9 +270,17 @@ def sem_resposta(texto: str) -> bool:
 def formatar_fontes(source_documents) -> list:
     """Extrai as fontes dos metadados, agrupadas e sem repeticao.
 
-    Retorna uma lista de dicts: {"categoria": ..., "arquivo": ..., "paginas": [...]}
-    A citacao vem dos METADADOS do indice, nao do texto gerado pelo modelo --
-    assim o numero da pagina nunca sai errado.
+    Retorna uma lista de dicts:
+        {"categoria": ..., "arquivo": ..., "paginas": [...],
+         "trechos": [{"pagina": 10, "texto": "..."}, ...]}
+
+    A citacao vem dos METADADOS do indice, nao do texto gerado pelo modelo
+    -- assim o numero da pagina nunca sai errado.
+
+    Os TRECHOS sao o texto exato que o modelo recebeu. Eles ja estavam na
+    memoria e eram descartados; devolve-los deixa o usuario conferir a
+    resposta contra a fonte, em vez de so acreditar. O texto nao e cortado:
+    truncar a prova derrota o proposito de mostra-la.
     """
     agrupado = {}
     for doc in source_documents:
@@ -283,17 +291,28 @@ def formatar_fontes(source_documents) -> list:
         pagina = doc.metadata.get("page")
 
         chave = (categoria, arquivo)
-        agrupado.setdefault(chave, set())
+        dados = agrupado.setdefault(chave, {"paginas": set(), "trechos": []})
         if pagina is not None:
-            agrupado[chave].add(pagina + 1)
+            dados["paginas"].add(pagina + 1)
+
+        texto = (doc.page_content or "").strip()
+        # A busca hibrida roda BM25 e semantica em paralelo e as duas podem
+        # trazer o MESMO trecho; o multi-query multiplica isso. Sem remover
+        # a repeticao, o usuario veria o mesmo paragrafo tres vezes.
+        if texto and all(t["texto"] != texto for t in dados["trechos"]):
+            dados["trechos"].append(
+                {"pagina": pagina + 1 if pagina is not None else None,
+                 "texto": texto}
+            )
 
     fontes = []
-    for (categoria, arquivo), paginas in sorted(agrupado.items()):
+    for (categoria, arquivo), dados in sorted(agrupado.items()):
         fontes.append(
             {
                 "categoria": categoria,
                 "arquivo": arquivo,
-                "paginas": sorted(paginas),
+                "paginas": sorted(dados["paginas"]),
+                "trechos": dados["trechos"],
             }
         )
     return fontes

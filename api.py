@@ -12,18 +12,24 @@ Uso:
     uvicorn api:app --host 0.0.0.0 --port 8000
 """
 
+import json
 import os
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from src.ingest import build_vectorstore, INDEX_DIR, PASTA_DADOS
-from src.agent import load_agent, ask, formatar_fontes, sem_resposta, DATA_BASE
+from src.agent import (
+    load_agent, ask, formatar_fontes, sem_resposta, montar_historico, DATA_BASE,
+)
 from src.limite import Limite
+from src.registro import registrar
+from src.agent import PROVEDOR, MODELO
 
 PASTA_WEB = Path(__file__).parent / "web"
 
@@ -90,10 +96,19 @@ class Consulta(BaseModel):
     historico: list[Troca] = Field(default_factory=list, max_length=10)
 
 
+class Trecho(BaseModel):
+    """O texto exato que embasou a resposta, para o usuario conferir."""
+    pagina: int | None = None
+    texto: str
+
+
 class Fonte(BaseModel):
     categoria: str
     arquivo: str
     paginas: list[int]
+    # Sem declarar aqui, o response_model do FastAPI descartaria os trechos
+    # em silencio -- sem erro, sem aviso, so sumiriam da resposta.
+    trechos: list[Trecho] = Field(default_factory=list)
 
 
 class Resposta(BaseModel):
@@ -117,6 +132,7 @@ def perguntar(consulta: Consulta, request: Request):
     if chain is None:
         raise HTTPException(status_code=503, detail="O agente ainda está carregando.")
 
+    comecou = time.monotonic()
     try:
         resultado = ask(
             chain,
@@ -125,6 +141,13 @@ def perguntar(consulta: Consulta, request: Request):
         )
     except Exception as erro:
         print(f"Erro ao consultar o agente: {erro}")
+        registrar(
+            pergunta=consulta.pergunta,
+            erro=type(erro).__name__,
+            ms=int((time.monotonic() - comecou) * 1000),
+            provedor=PROVEDOR,
+            modelo=MODELO,
+        )
         texto_erro = str(erro).lower()
 
         # COTA DIARIA do provedor esgotada (tipico de camada gratuita).
@@ -165,8 +188,101 @@ def perguntar(consulta: Consulta, request: Request):
     texto = resultado["result"]
     # Sem resposta encontrada = sem fontes. Listar documentos que nao
     # embasaram nada passaria a impressao errada.
-    fontes = [] if sem_resposta(texto) else formatar_fontes(resultado["source_documents"])
+    nao_achou = sem_resposta(texto)
+    fontes = [] if nao_achou else formatar_fontes(resultado["source_documents"])
+
+    registrar(
+        pergunta=consulta.pergunta,
+        achou=not nao_achou,
+        continuacao=bool(consulta.historico),
+        n_fontes=len(fontes),
+        ms=int((time.monotonic() - comecou) * 1000),
+        provedor=PROVEDOR,
+        modelo=MODELO,
+    )
     return {"resposta": texto, "fontes": fontes}
+
+
+def _evento(tipo: str, dado) -> bytes:
+    """Uma linha do fluxo: um objeto JSON seguido de quebra de linha.
+
+    O formato e NDJSON: {"tipo": "texto", "dado": "..."} por linha. O
+    cliente separa por quebra de linha e decodifica cada pedaco.
+    """
+    linha = json.dumps({"tipo": tipo, "dado": dado}, ensure_ascii=False)
+    return (linha + "\n").encode()
+
+
+@app.post("/api/perguntar/stream")
+async def perguntar_stream(consulta: Consulta, request: Request):
+    """Mesma pergunta, resposta em pedacos conforme o modelo escreve.
+
+    Medido: a resposta completa leva de 10 a 18 segundos. Esperar tudo isso
+    olhando um "carregando" faz o site parecer travado; com o texto
+    aparecendo, a espera continua a mesma e a sensacao muda por completo.
+
+    O formato e NDJSON (uma linha JSON por evento), e nao SSE, porque o
+    EventSource do navegador so faz GET -- e a pergunta e o historico
+    precisam ir no corpo de um POST.
+    """
+    recusa = limite.checar(identificar(request))
+    if recusa:
+        raise HTTPException(status_code=429, detail=recusa)
+
+    chain = estado.get("chain")
+    if chain is None:
+        raise HTTPException(status_code=503, detail="O agente ainda está carregando.")
+
+    async def gerar():
+        comecou = time.monotonic()
+        documentos, texto = [], ""
+        try:
+            async for pedaco in chain.astream({
+                "input": consulta.pergunta,
+                "chat_history": montar_historico(
+                    [t.model_dump() for t in consulta.historico]
+                ),
+            }):
+                # A busca termina antes da escrita, entao o 'context' chega
+                # primeiro. Guardamos e so mandamos no fim: se a resposta
+                # for "nao encontrei", nenhuma fonte deve aparecer.
+                if pedaco.get("context"):
+                    documentos = pedaco["context"]
+                if pedaco.get("answer"):
+                    texto += pedaco["answer"]
+                    yield _evento("texto", pedaco["answer"])
+
+            fontes = [] if sem_resposta(texto) else formatar_fontes(documentos)
+            yield _evento("fontes", fontes)
+            registrar(
+                pergunta=consulta.pergunta,
+                achou=not sem_resposta(texto),
+                continuacao=bool(consulta.historico),
+                n_fontes=len(fontes),
+                ms=int((time.monotonic() - comecou) * 1000),
+                provedor=PROVEDOR, modelo=MODELO, streaming=True,
+            )
+        except Exception as erro:
+            # Aqui o status HTTP 200 ja foi enviado com o primeiro byte e
+            # nao pode mais virar 500. Por isso o erro viaja como EVENTO
+            # dentro do fluxo, e o front o trata como trataria um erro HTTP.
+            print(f"Erro ao transmitir a resposta: {erro}")
+            registrar(
+                pergunta=consulta.pergunta, erro=type(erro).__name__,
+                ms=int((time.monotonic() - comecou) * 1000),
+                provedor=PROVEDOR, modelo=MODELO, streaming=True,
+            )
+            texto_erro = str(erro).lower()
+            if "quota" in texto_erro:
+                aviso = ("A cota gratuita de consultas deste site acabou por hoje. "
+                         "Tente novamente amanhã.")
+            elif "overloaded" in texto_erro or "529" in texto_erro or "rate limit" in texto_erro:
+                aviso = "O serviço está congestionado agora. Tente de novo em instantes."
+            else:
+                aviso = "Não foi possível consultar os documentos agora."
+            yield _evento("erro", aviso)
+
+    return StreamingResponse(gerar(), media_type="application/x-ndjson")
 
 
 # --- Front-end estatico -------------------------------------------------

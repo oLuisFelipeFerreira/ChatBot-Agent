@@ -17,6 +17,7 @@ from langchain_community.retrievers import BM25Retriever
 from langchain.retrievers import EnsembleRetriever
 from langchain.retrievers.multi_query import MultiQueryRetriever
 from langchain.prompts import PromptTemplate
+from langchain_core.runnables import RunnableLambda
 
 # Palavras muito comuns em portugues. Sem filtrar isso, o BM25 pontua alto
 # qualquer trecho que contenha "de", "entre", "a" -- e traz lixo.
@@ -131,9 +132,20 @@ def montar_retriever_hibrido(vectorstore, chunks, k: int,
         weights=[1 - peso_semantico, peso_semantico],
     )
 
-    if llm is None:
-        return hibrido
-
-    return MultiQueryRetriever.from_llm(
+    final = hibrido if llm is None else MultiQueryRetriever.from_llm(
         retriever=hibrido, llm=llm, prompt=PROMPT_MULTIQUERY
     )
+
+    # CORTE FINAL em k trechos.
+    #
+    # Sem isto, k=10 devolve ate 19: o EnsembleRetriever roda BM25 e
+    # semantica, cada um traz 10, e ele entrega a UNIAO dos dois sem cortar.
+    # Com multi-query a conta piora, porque sao tres perguntas buscando.
+    # Resultado medido: 13.519 caracteres de contexto onde se esperava
+    # ~8.200 -- quase o dobro do custo e da espera, sem ninguem ter
+    # decidido isso.
+    #
+    # O corte vem DEPOIS da fusao porque o Ensemble ja ordenou por
+    # relevancia combinada: os 10 primeiros sao os melhores dos dois
+    # buscadores. Reduzir cada buscador para 5 traria 10 piores.
+    return final | RunnableLambda(lambda docs: docs[:k])
