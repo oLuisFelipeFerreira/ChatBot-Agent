@@ -149,3 +149,60 @@ def montar_retriever_hibrido(vectorstore, chunks, k: int,
     # relevancia combinada: os 10 primeiros sao os melhores dos dois
     # buscadores. Reduzir cada buscador para 5 traria 10 piores.
     return final | RunnableLambda(lambda docs: docs[:k])
+
+
+# Arquivo de curadoria que CORRIGE o texto literal das leis indexadas.
+# Ele declara, no proprio cabecalho, que prevalece em caso de conflito.
+ARQUIVO_VIGENCIA = "notas_de_vigencia.txt"
+
+
+def montar_retriever_com_vigencia(principal, chunks, k_vigencia: int = 2):
+    """Garante que as notas de vigencia cheguem ao modelo quando importam.
+
+    O PROBLEMA, medido nesta base:
+
+        in_drei_81.pdf                 40 trechos citando EIRELI
+        manual_sociedade_limitada.pdf   7
+        manual_empresario_individual.pdf 5
+        notas_de_vigencia.txt           2   <-- os que dizem que foi EXTINTA
+
+    As notas sao 5 trechos em 2.099 (0,24% da base). Perguntado "posso
+    abrir uma EIRELI?", o buscador ranqueia por relevancia ao termo e as
+    notas perdem TODAS as vagas para os documentos volumosos -- que
+    tratam a EIRELI como opcao valida, porque foram escritos antes de ela
+    ser extinta.
+
+    Ou seja: a informacao corretiva e abafada pela informacao que ela
+    existe para corrigir, justamente por ser menor. Nao e defeito do
+    modelo; acontece com qualquer um, porque a falha e na recuperacao.
+
+    A CORRECAO: um buscador dedicado so as notas, que sempre contribui os
+    seus melhores k_vigencia trechos. Elas entram PRIMEIRO no contexto --
+    o prompt manda a vigencia prevalecer, e modelo da mais peso ao que
+    vem antes. Assim a autoridade do documento existe na ESTRUTURA, e nao
+    so numa instrucao que o modelo pode ignorar.
+
+    Custo: ~470 tokens por pergunta. Incluir as 5 notas sempre custaria
+    ~1.170 e a maioria das perguntas nao precisa delas.
+    """
+    notas = [c for c in chunks
+             if c.metadata.get("arquivo", "").startswith(ARQUIVO_VIGENCIA.split(".")[0])]
+    if not notas:
+        print(f"AVISO: {ARQUIVO_VIGENCIA} nao esta no indice -- "
+              "as correcoes de vigencia nao vao chegar ao modelo.")
+        return principal
+
+    buscador_notas = BM25Retriever.from_documents(notas, preprocess_func=tokenizar_bm25)
+    buscador_notas.k = min(k_vigencia, len(notas))
+
+    def buscar(pergunta):
+        texto = pergunta if isinstance(pergunta, str) else str(pergunta)
+        encontrados = buscador_notas.invoke(texto)
+        vistos = {d.page_content for d in encontrados}
+        for doc in principal.invoke(pergunta):
+            if doc.page_content not in vistos:
+                vistos.add(doc.page_content)
+                encontrados.append(doc)
+        return encontrados
+
+    return RunnableLambda(buscar)

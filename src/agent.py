@@ -6,6 +6,8 @@ O modelo de linguagem e trocavel: veja PROVEDOR/MODELO abaixo e o .env.example.
 """
 
 import os
+import re
+import unicodedata
 from datetime import date
 from pathlib import Path
 
@@ -19,7 +21,7 @@ from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import AIMessage, HumanMessage
 
 from .ingest import INDEX_DIR, EMBEDDING_MODEL, carregar_chunks
-from .busca import montar_retriever_hibrido
+from .busca import montar_retriever_hibrido, montar_retriever_com_vigencia
 
 load_dotenv()
 
@@ -210,6 +212,20 @@ def criar_llm():
     init_chat_model importa o pacote do provedor na hora, entao o projeto
     nao precisa depender de todos eles de uma vez.
     """
+    # TEMPERATURA ZERO, por dois motivos que se somam.
+    #
+    # 1. QUALIDADE. Temperatura e o quanto o modelo aceita escolher uma
+    #    palavra menos provavel. Isso e desejavel para escrever um conto;
+    #    aqui, "criatividade" e outro nome para desviar do documento.
+    #
+    # 2. MEDICAO. Sem isto, a mesma pergunta da respostas diferentes a
+    #    cada execucao. Medido na avaliacao: com a configuracao IDENTICA,
+    #    uma pergunta passou numa rodada e falhou na seguinte. Com a
+    #    medicao instavel, nao da para saber se uma mudanca melhorou o
+    #    sistema ou se foi sorte -- que e exatamente o que a avaliacao
+    #    existe para responder.
+    extras = {"temperature": float(os.getenv("TEMPERATURA", "0"))}
+
     if PROVEDOR == "ollama":
         _conferir_ollama()
 
@@ -221,6 +237,20 @@ def criar_llm():
             "provedor la (ollama roda local e nao pede chave)."
         )
 
+    # TEMPERATURA ZERO, por dois motivos que se somam.
+    #
+    # 1. QUALIDADE. Temperatura e o quanto o modelo aceita escolher uma
+    #    palavra menos provavel. Isso e desejavel para escrever um conto;
+    #    aqui, "criatividade" e outro nome para desviar do documento.
+    #
+    # 2. MEDICAO. Sem isto, a mesma pergunta da respostas diferentes a
+    #    cada execucao. Medido na avaliacao: com a configuracao IDENTICA,
+    #    uma pergunta passou numa rodada e falhou na seguinte. Com a
+    #    medicao instavel, nao da para saber se uma mudanca melhorou o
+    #    sistema ou se foi sorte -- que e exatamente o que a avaliacao
+    #    existe para responder.
+    extras = {"temperature": float(os.getenv("TEMPERATURA", "0"))}
+
     if PROVEDOR == "ollama":
         # num_ctx: a janela de contexto do Ollama e PEQUENA por padrao.
         # Este projeto manda ~3.500 tokens (10 trechos + as regras do
@@ -229,11 +259,12 @@ def criar_llm():
         # metade dos documentos. O sintoma e "o modelo local e burro",
         # quando na verdade ele nunca recebeu o texto inteiro.
         # 8192 cobre o contexto com folga para a resposta.
-        extras = {"num_ctx": int(os.getenv("OLLAMA_NUM_CTX", "8192"))}
+        extras["num_ctx"] = int(os.getenv("OLLAMA_NUM_CTX", "8192"))
     else:
         # APIs remotas respondem 429 (limite de taxa) ou 529 (sobrecarga)
         # de vez em quando; sao passageiros e a biblioteca tenta de novo.
-        extras = {"max_retries": 5, "timeout": 60}
+        extras["max_retries"] = 5
+        extras["timeout"] = 60
 
     try:
         return init_chat_model(MODELO, model_provider=PROVEDOR, **extras)
@@ -273,6 +304,10 @@ def load_agent(index_dir: str = INDEX_DIR):
             k=TOP_K,
             llm=llm if USAR_MULTIQUERY else None,
         )
+        # As notas de vigencia sao 0,24% da base e perdiam todas as vagas
+        # para os documentos volumosos. Sem isto, o agente responde com a
+        # redacao vencida da lei. Ver montar_retriever_com_vigencia.
+        retriever = montar_retriever_com_vigencia(retriever, chunks)
     else:
         print(
             "AVISO: chunks.json nao encontrado -- usando apenas busca semantica.\n"
@@ -317,28 +352,36 @@ def ask(chain, pergunta: str, historico=None) -> dict:
     }
 
 
-# Frase exata que o prompt manda o modelo usar quando nao acha a resposta.
+# Frase que o prompt manda o modelo usar quando nao acha a resposta.
 FRASE_SEM_RESPOSTA = "Não encontrei essa informação nos documentos disponíveis"
 
+# Reconhecer a recusa pela frase EXATA nao funciona: o modelo parafraseia.
+# Observado na avaliacao, todas recusas legitimas que passavam despercebidas:
+#   "Não encontrei informações nos documentos disponíveis sobre..."
+#   "Não encontrei a informação necessária nos documentos disponíveis..."
+# Quando a recusa nao e reconhecida, o app mostra a lista de fontes junto
+# de um "nao sei" -- exatamente o que esta logica existe para impedir.
+#
+# Entao casamos o PADRAO, nao a frase: admite que nao encontrou, e
+# menciona os documentos.
+#
+# A recusa precisa ABRIR a resposta. Sem essa exigencia, uma resposta
+# valida com ressalva seria confundida com recusa -- e suas fontes,
+# escondidas sem motivo:
+#   "O limite e R$ 81.000 por ano. Nao encontrei o valor de anos
+#    anteriores nos documentos."   <- isto e uma RESPOSTA, nao uma recusa.
+PADRAO_RECUSA = re.compile(
+    r"^nao encontr\w*.{0,120}?documento",
+    re.DOTALL,
+)
 
-def truncar_na_recusa(texto: str) -> str:
-    """Se o agente recusou, devolve SO a frase de recusa.
 
-    Por que isto existe: observado com um modelo local de 3B, o agente
-    respondeu a frase de recusa corretamente e, no paragrafo seguinte,
-    inventou um tributo que nao existe ("Imposto Municipal Sobre a
-    Renda"). A recusa estava certa; o que veio depois era alucinacao.
-
-    O prompt manda responder EXATAMENTE a frase quando nao sabe, entao
-    qualquer continuacao ja esta fora do contrato. Num assistente
-    juridico, perder uma nuance eventual e muito mais barato do que
-    exibir um imposto inventado -- por isso cortamos.
-
-    Vale para QUALQUER modelo: o grande erra menos, nao erra nunca.
-    """
-    if not sem_resposta(texto):
-        return texto
-    return FRASE_SEM_RESPOSTA + "."
+def _normalizar(texto: str) -> str:
+    """Minusculas, sem acento e sem marcacao, para comparar sem depender
+    da grafia nem de o modelo ter escrito "**Nao encontrei**"."""
+    sem_acento = unicodedata.normalize("NFKD", texto)
+    sem_acento = "".join(c for c in sem_acento if not unicodedata.combining(c))
+    return sem_acento.lower().lstrip("*_#>\"' \t\r\n")
 
 
 def sem_resposta(texto: str) -> bool:
@@ -347,7 +390,28 @@ def sem_resposta(texto: str) -> bool:
     Nesse caso nao faz sentido listar fontes: nenhum documento embasou a
     resposta, e mostrar 10 arquivos passaria a impressao errada.
     """
-    return FRASE_SEM_RESPOSTA.lower() in texto.lower()
+    return bool(PADRAO_RECUSA.match(_normalizar(texto.strip())))
+
+
+def truncar_na_recusa(texto: str) -> str:
+    """Se o agente recusou, mantem SO o primeiro paragrafo.
+
+    Por que isto existe: observado com um modelo local de 3B, o agente
+    recusou corretamente e, no paragrafo SEGUINTE, inventou um tributo
+    que nao existe ("Imposto Municipal Sobre a Renda"). A recusa estava
+    certa; o que veio depois era alucinacao.
+
+    Cortamos no paragrafo, e nao na frase, porque uma recusa boa muitas
+    vezes continua na mesma linha de forma util -- "...sobre Portugal.
+    Posso ajudar com duvidas sobre Direito Empresarial brasileiro?".
+    Isso e bom e fica. O que vem depois de uma linha em branco, nao.
+
+    Vale para QUALQUER modelo: o grande erra menos, nao erra nunca.
+    """
+    if not sem_resposta(texto):
+        return texto
+    paragrafos = texto.strip().split("\n\n")
+    return paragrafos[0].strip()
 
 
 def formatar_fontes(source_documents) -> list:

@@ -17,8 +17,41 @@ def test_reconhece_a_recusa():
     assert sem_resposta("NÃO ENCONTREI ESSA INFORMAÇÃO NOS DOCUMENTOS DISPONÍVEIS")
 
 
+def test_reconhece_a_recusa_parafraseada():
+    """Casos REAIS da avaliacao que a frase exata nao pegava.
+
+    Quando a recusa passa despercebida, o app mostra a lista de fontes
+    junto de um "nao sei" -- o oposto do que essa logica existe para
+    fazer. O modelo parafraseia; o casamento nao pode ser literal.
+    """
+    assert sem_resposta(
+        "Não encontrei informações nos documentos disponíveis sobre "
+        "abertura de empresa em Portugal. Posso ajudar com dúvidas "
+        "sobre Direito Empresarial brasileiro?"
+    )
+    assert sem_resposta(
+        "Não encontrei a informação necessária nos documentos "
+        "disponíveis para responder a essa pergunta."
+    )
+    assert sem_resposta("**Não encontrei essa informação nos documentos disponíveis.**")
+
+
 def test_resposta_normal_nao_e_recusa():
     assert not sem_resposta("O MEI paga um valor fixo mensal por meio do DAS.")
+
+
+def test_resposta_com_ressalva_nao_e_recusa():
+    """Responder e ressalvar o que falta NAO e recusar.
+
+    Tratar isto como recusa esconderia as fontes de uma resposta boa.
+    """
+    assert not sem_resposta(
+        "O limite é R$ 81.000 por ano. Não encontrei o valor de anos "
+        "anteriores nos documentos."
+    )
+    assert not sem_resposta(
+        "Não encontrei problemas na documentação apresentada à junta comercial."
+    )
 
 
 def test_corta_alucinacao_depois_da_recusa():
