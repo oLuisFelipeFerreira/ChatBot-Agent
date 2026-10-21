@@ -25,7 +25,8 @@ from pydantic import BaseModel, Field
 
 from src.ingest import build_vectorstore, INDEX_DIR, PASTA_DADOS
 from src.agent import (
-    load_agent, ask, formatar_fontes, sem_resposta, montar_historico, DATA_BASE,
+    load_agent, ask, formatar_fontes, sem_resposta, truncar_na_recusa,
+    montar_historico, DATA_BASE,
 )
 from src.limite import Limite
 from src.registro import registrar
@@ -185,7 +186,9 @@ def perguntar(consulta: Consulta, request: Request):
             detail="Não foi possível consultar os documentos agora.",
         )
 
-    texto = resultado["result"]
+    # Corta qualquer coisa que venha depois da recusa: ja vimos um modelo
+    # recusar certo e inventar um imposto no paragrafo seguinte.
+    texto = truncar_na_recusa(resultado["result"])
     # Sem resposta encontrada = sem fontes. Listar documentos que nao
     # embasaram nada passaria a impressao errada.
     nao_achou = sem_resposta(texto)
@@ -252,6 +255,12 @@ async def perguntar_stream(consulta: Consulta, request: Request):
                     texto += pedaco["answer"]
                     yield _evento("texto", pedaco["answer"])
 
+            # Mesmo corte do endpoint sincrono. No streaming o texto ja
+            # foi transmitido, entao avisamos o front para substituir o
+            # que ele mostrou pela recusa limpa.
+            limpo = truncar_na_recusa(texto)
+            if limpo != texto:
+                yield _evento("substituir", limpo)
             fontes = [] if sem_resposta(texto) else formatar_fontes(documentos)
             yield _evento("fontes", fontes)
             registrar(

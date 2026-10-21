@@ -20,10 +20,14 @@ def com_config(provedor, modelo):
     agent.PROVEDOR, agent.MODELO = provedor, modelo
 
 
-def test_padrao_e_gemini():
-    """O padrao do projeto e a camada gratuita do Gemini."""
-    assert agent.PROVEDOR == "google_genai"
-    assert agent.MODELO.startswith("gemini")
+def test_padrao_e_local_e_sem_chave():
+    """O padrao do projeto roda na maquina de quem clonou, sem chave.
+
+    Se alguem trocar isto por um provedor de API, este teste quebra -- e
+    deve quebrar: seria mudar a promessa de "clone e teste de graca".
+    """
+    assert agent.PROVEDOR == "ollama"
+    assert agent.CHAVE_DO_PROVEDOR["ollama"] is None
 
 
 def test_monta_o_modelo_do_provedor_escolhido():
