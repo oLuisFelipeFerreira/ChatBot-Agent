@@ -3,16 +3,50 @@
 # ⚖️ Simples Assim
 
 **Assistente de IA para dúvidas de direito empresarial brasileiro.**
-Responde em linguagem natural com base em legislação e documentos oficiais —
-sempre indicando a fonte, o arquivo e a página.
+Responde em linguagem natural a partir da legislação oficial — sempre com a
+fonte, o arquivo, a página e o trecho exato que embasou a resposta.
 
 [![Python](https://img.shields.io/badge/Python-3.11+-1F6F4A?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![LangChain](https://img.shields.io/badge/LangChain-RAG-1F6F4A?style=flat-square)](https://python.langchain.com/)
 [![Local](https://img.shields.io/badge/roda_local-sem_API_key-1F6F4A?style=flat-square)](#pré-requisitos)
 [![FastAPI](https://img.shields.io/badge/FastAPI-backend-1F6F4A?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![OCI](https://img.shields.io/badge/Oracle_Cloud-deploy-1F6F4A?style=flat-square&logo=oracle&logoColor=white)](https://www.oracle.com/cloud/)
+[![Licença](https://img.shields.io/badge/licença-MIT-1F6F4A?style=flat-square)](LICENSE)
+
+**Roda inteiro na sua máquina, sem chave de API.**
+13/15 numa avaliação reproduzível · 100% de recusa correta fora do escopo
+
+![Resposta com fontes verificáveis](docs/resposta-com-fontes.png)
 
 </div>
+
+<details>
+<summary><b>English summary</b></summary>
+
+**Simples Assim** answers questions about Brazilian company law — company
+formation, legal entity types, tax regimes, the MEI/ME/EPP framework — grounded
+in official legislation, always citing the source file, page and exact passage.
+
+**What makes it different:** Brazilian statutes are published as *compiled
+text*, which keeps repealed wording and frozen monetary values inline. A naive
+RAG system quotes them confidently and gets the law wrong. This project keeps a
+curated "currency notes" layer that overrides the statute text — and gives that
+layer **structural authority in retrieval**, because measurement showed it was
+being buried: 5 chunks out of 2,099 (0.24%) always lost retrieval slots to the
+53 chunks that treat an abolished entity as valid.
+
+**Measured, not claimed.** A 15-question evaluation set runs against the real
+chain and is reproducible (`temperature=0`, identical results across runs). It
+found three bugs in the system — and one false positive in its own answer key.
+See [docs/AVALIACAO.md](docs/AVALIACAO.md).
+
+**Zero cost to run.** Default provider is a local model via Ollama: no API key,
+no account, no quota. Gemini, Groq, Anthropic and OpenAI are drop-in
+alternatives via one environment variable.
+
+**Stack:** Python · LangChain · FAISS · BM25 · sentence-transformers · FastAPI ·
+Ollama. Full documentation in Portuguese below.
+
+</details>
 
 ---
 
@@ -33,82 +67,74 @@ com base no texto oficial e mostra exatamente de onde tirou cada informação.
 
 ## Demonstração
 
-> _(adicionar capturas de tela aqui)_
-
-<!--
 ![Tela inicial](docs/tela-inicial.png)
-![Resposta com fontes](docs/resposta.png)
--->
 
-**Exemplo real:**
-
-> **Consulta:** Quanto o MEI paga por mês?
->
-> O MEI paga um valor fixo mensal, independentemente de faturar ou não naquele
-> mês, por meio do DAS. O valor é a soma de: contribuição previdenciária de 5%
-> do salário-mínimo; R$ 1,00 de ICMS (se for contribuinte); R$ 5,00 de ISS (se
-> for contribuinte). O MEI transportador autônomo de cargas recolhe 12% em vez
-> de 5%. O pagamento é devido mesmo com receita zero ou empresa inativa.
->
-> **Fontes:** `[Tributário] mei_perguntas_respostas.pdf — páginas 10, 12` ·
-> `[Legislação] lc123_simples_nacional.html`
-
-**Teste de ancoragem** — o agente recusa o que está fora da base, em vez de inventar:
+**Teste de ancoragem** — o agente recusa o que está fora da base, em vez de
+inventar:
 
 > **Consulta:** Qual a capital da França?
 >
 > Não encontrei essa informação nos documentos disponíveis.
 
+**Teste de vigência** — o agente contraria o texto literal da lei quando a
+curadoria diz que ele está superado:
+
+> **Consulta:** Posso abrir uma EIRELI?
+>
+> Não. A Empresa Individual de Responsabilidade Limitada (EIRELI) foi EXTINTA
+> do ordenamento jurídico brasileiro.
+
+A LC 123 **ainda menciona a EIRELI** no art. 3º. A resposta correta vem da
+camada de notas de vigência, citada entre as fontes.
+
 ---
 
 ## Arquitetura
 
-```
-                    ┌──────────────────────────────┐
-   Navegador ──────►│  web/   HTML · CSS · JS      │
-                    │  interface, sem framework    │
-                    └──────────────┬───────────────┘
-                                   │  POST /api/perguntar
-                    ┌──────────────▼───────────────┐
-                    │  api.py   FastAPI            │
-                    │  valida, orquestra, serve    │
-                    └──────────────┬───────────────┘
-                                   │
-                    ┌──────────────▼───────────────┐
-                    │  src/   o agente (RAG)       │
-                    └──────────────────────────────┘
+```mermaid
+flowchart TD
+    U([Navegador]) -->|POST /api/perguntar/stream| API[api.py · FastAPI<br/>valida · limita por IP · registra]
+    API --> AG[src/agent.py<br/>cadeia RAG]
+
+    AG --> RE{Pergunta de<br/>continuação?}
+    RE -->|sim| RW[Reescreve com o histórico<br/>'e se eu passar disso?' →<br/>'o que acontece se o MEI<br/>ultrapassar o limite?']
+    RE -->|não| BU
+    RW --> BU[src/busca.py]
+
+    BU --> GL[Expansão de siglas<br/>EPP → empresa de pequeno porte]
+    GL --> BM[BM25<br/>termo exato]
+    GL --> SE[FAISS<br/>significado]
+    BM --> EN[EnsembleRetriever<br/>40 / 60 · corte em TOP_K]
+    SE --> EN
+    EN --> VG[Buscador de vigência<br/>entra PRIMEIRO no contexto]
+
+    VG --> LLM[Modelo de linguagem<br/>trocável · temperature=0]
+    LLM --> AN{Recusou?}
+    AN -->|sim| CR[Corta o texto após a recusa<br/>e oculta as fontes]
+    AN -->|não| FO[Fontes dos METADADOS<br/>arquivo · página · trecho]
+    CR --> U
+    FO --> U
+
+    style VG fill:#1F6F4A,color:#fff
+    style AN fill:#1F6F4A,color:#fff
 ```
 
-### O pipeline de RAG
+O bloco destacado em verde é o que diferencia este projeto de um RAG genérico:
+a **camada de vigência**, que corrige o texto da lei, e a **ancoragem**, que
+faz o agente admitir quando não sabe.
 
+### O pipeline de indexação
+
+```mermaid
+flowchart LR
+    D[PDF · HTML · TXT<br/>fontes .gov.br] --> E[Extração e limpeza<br/>remove texto revogado]
+    E --> C[Chunking jurídico<br/>respeita 'Art.' e '§']
+    C --> EM[Embeddings multilíngues<br/>roda local, de graça]
+    EM --> F[(Índice FAISS<br/>~2.000 trechos)]
+    C --> J[(chunks.json<br/>para o BM25)]
 ```
-Documentos oficiais (PDF · HTML · TXT)
-        │
-        ▼
-  Extração e limpeza ......... remove cabeçalhos, rodapés e texto revogado
-        │
-        ▼
-  Chunking jurídico .......... divide respeitando "Art." e "§"
-        │
-        ▼
-  Embeddings multilíngues .... paraphrase-multilingual-MiniLM-L12-v2
-        │
-        ▼
-  Índice FAISS ............... busca por similaridade semântica
-        │
-        ├──────────────┬────────────────┐
-        ▼              ▼                ▼
-   Expansão de     BM25            Busca
-   siglas       (palavra-chave)   semântica
-        │              │                │
-        └──────────────┴────────────────┘
-                       │  EnsembleRetriever (40 / 60)
-                       ▼
-              Multi-query (opcional)
-                       │
-                       ▼
-        Modelo de linguagem (trocável) → resposta + fontes
-```
+
+---
 
 ### Decisões técnicas
 
@@ -184,87 +210,27 @@ Nada disso é teoria: cada item acima existe por causa de um defeito que a
 
 ## Avaliação
 
-Sem medir, *"melhorou"* é opinião. Ajustar o `TOP_K`, o peso da busca híbrida ou
-o modelo vira adivinhação, porque nada diz se o resultado ficou melhor ou pior.
-
-São **15 perguntas anotadas** — 10 que devem ser respondidas e 5 que devem ser
-recusadas — rodando contra a cadeia real, sem servidor e sem chamada de API
-extra:
+Sem medir, *"melhorou"* é opinião. São **15 perguntas anotadas** — 10 que devem
+ser respondidas e 5 que devem ser recusadas — rodando contra a cadeia real:
 
 ```bash
 python -m avaliacao.rodar
 ```
 
-| Modelo | `TOP_K` | Acertos | Recusou certo | Fonte certa | Armadilhas | Mediana |
-|---|---|---|---|---|---|---|
-| `llama3.2:3b` (local) | 10 | 13/15 | 100% | 100% | 50% | 61,8s |
-| `llama3.2:3b` (local) | 4 | 12/15 | 100% | 100% | 50% | 25,7s |
+| Modelo | `TOP_K` | Acertos | Recusou certo | Fonte certa | Mediana |
+|---|---|---|---|---|---|
+| `llama3.2:3b` (local) | 10 | 13/15 | 100% | 100% | 61,8s |
+| `llama3.2:3b` (local) | 4 | 12/15 | 100% | 100% | 25,7s |
 
-> Medido num i5-1135G7 sem GPU. **Um acerto a mais custa 2,4× o tempo** — é o
-> trade-off entre contexto e espera, com número em vez de palpite.
+> Num i5-1135G7 sem GPU, com `temperature=0`. Duas execuções seguidas dão
+> resultado idêntico.
 
-### O que ela mede, e por quê
+Construí a avaliação esperando comparar modelos. **Ela encontrou três defeitos
+no sistema antes de comparar modelo nenhum** — incluindo um em que o
+diferencial do projeto simplesmente não funcionava, e um falso positivo no seu
+próprio gabarito.
 
-| | Pergunta que responde |
-|---|---|
-| **Recusa** | O sistema admite quando não sabe? É a regra mais importante do projeto |
-| **Armadilha** | Evita os valores vencidos que estão no texto literal da lei? |
-| **Fonte** | A busca trouxe o documento que de fato contém a resposta? |
-| **Conteúdo** | Os números e termos esperados aparecem? |
-
-A terceira é a mais útil na prática: ela **separa falha de busca de falha de
-modelo**. Se a fonte certa chegou e a resposta saiu errada, mexer no `TOP_K` ou
-no glossário é perda de tempo — o problema é o modelo. Se a fonte não chegou,
-melhorar o prompt é inútil.
-
-### Três defeitos que ela encontrou
-
-Construí a avaliação esperando comparar modelos. Ela encontrou problemas no
-**sistema** antes de comparar modelo nenhum.
-
-**1. O diferencial do projeto não funcionava.** As notas de vigência são 5
-trechos numa base de 2.099 — **0,24%**. Perguntado *"posso abrir uma EIRELI?"*,
-o buscador ranqueia por relevância ao termo, e a distribuição é esta:
-
-```
-40 trechos  in_drei_81.pdf              tratam a EIRELI como opção válida
- 7 trechos  manual_sociedade_limitada.pdf
- 5 trechos  manual_empresario_individual.pdf
- 2 trechos  notas_de_vigencia.txt       dizem que ela foi EXTINTA
-```
-
-Dois contra cinquenta e três. As notas perdiam **todas** as vagas, e o agente
-respondia com a redação vencida — citando fonte oficial, com total confiança.
-
-A causa é estrutural: **a informação corretiva é abafada pela informação que ela
-existe para corrigir**, justamente por ser menor. A correção foi dar autoridade
-estrutural ao documento de curadoria, com um buscador dedicado que sempre
-contribui e entra primeiro no contexto. Acerto de fonte: **78% → 100%**.
-
-**2. A recusa era detectada por frase exata, e o modelo parafraseia.** Estas
-eram contadas como respostas válidas, e o app mostrava a lista de fontes junto
-de um "não sei":
-
-> *"Não encontrei **informações** nos documentos disponíveis sobre abertura de
-> empresa em Portugal."*
-
-**3. A medição era instável.** Com a configuração idêntica, uma pergunta passava
-numa rodada e falhava na seguinte. `temperature=0` tornou as execuções
-reproduzíveis — e, de quebra, elevou a recusa correta de 80% para 100%: o modelo
-estava "criativamente" respondendo o que deveria recusar.
-
-### O que ela ainda não resolve
-
-As três falhas restantes são estáveis e conhecidas:
-
-- **`R$ 45,65`** — o texto da LC 123 traz esse valor absoluto para a contribuição
-  do MEI. É 5% do salário-mínimo **de 2016**, congelado na redação; a regra viva
-  é o percentual. O modelo local cita o número; o Gemini cita o percentual.
-  Nenhum dos dois erra por burrice — a armadilha está no corpus. Falta uma nota
-  de vigência para esse dispositivo.
-- **`desenquadramento`** e **`registro-ltda`** — a busca entrega as fontes
-  certas e o modelo de 3B não as aproveita. Limitação de tamanho do modelo, não
-  do sistema.
+**→ [Resultados, o que ela encontrou e as limitações](docs/AVALIACAO.md)**
 
 ---
 
@@ -432,19 +398,30 @@ define `OLLAMA_NUM_CTX=8192` por isso.
 
 ## Deploy
 
-Roda em uma instância **OCI Compute** (Ampere A1, Ubuntu 24.04), dentro de uma
-VCN com sub-rede pública e Internet Gateway.
+Testado numa instância **OCI Compute** (Ampere A1, Ubuntu 24.04), em VCN com
+sub-rede pública e Internet Gateway:
 
 ```bash
-# na instância
 git pull && source .venv/bin/activate
 pip install -r requirements.txt
-
 nohup uvicorn api:app --host 0.0.0.0 --port 8000 > servidor.log 2>&1 &
 ```
 
 Portas liberadas na Security List da OCI **e** no firewall interno (`iptables`),
 com a regra inserida antes do `REJECT` da cadeia INPUT.
+
+Em produção, três ajustes:
+
+| | Por quê |
+|---|---|
+| `USAR_MULTIQUERY=0` | Dobra as chamadas por pergunta, e camada gratuita conta requisições |
+| `LIMITE_POR_DIA` abaixo da cota do provedor | Quem diz "não" deve ser a sua aplicação, com mensagem decente — não o provedor com erro cru |
+| `ATRAS_DE_PROXY=1`, **só** se houver nginx/Cloudflare | Fora de um proxy, o cabeçalho é escrito pelo cliente e qualquer um fura o limite |
+
+> **Não há demonstração pública no ar**, por decisão. A instância gratuita é ARM
+> sem GPU — o modelo local levaria minutos por pergunta — e as camadas gratuitas
+> de API esgotam em poucas dezenas de consultas diárias. Uma demonstração que
+> falha deixa pior impressão que nenhuma.
 
 ---
 
@@ -474,17 +451,22 @@ com a regra inserida antes do `REJECT` da cadeia INPUT.
 │   ├── rodar.py                # executa e produz a tabela
 │   └── resultados/             # um JSON por configuração testada
 ├── data/                       # documentos, organizados por categoria
-├── test_ancoragem.py           # recusa, paráfrase e corte de alucinação
-├── test_vigencia.py            # as notas de curadoria chegam ao modelo?
-├── test_memoria.py             # histórico de conversa
-├── test_limite.py              # limite de requisições
-├── test_provedor.py            # troca de provedor
+├── tests/                      # sem framework, rodam em < 1 segundo
+│   ├── rodar.py                # python -m tests.rodar
+│   ├── test_ancoragem.py       # recusa, paráfrase e corte de alucinação
+│   ├── test_vigencia.py        # as notas de curadoria chegam ao modelo?
+│   ├── test_memoria.py         # histórico de conversa
+│   ├── test_limite.py          # limite de requisições
+│   └── test_provedor.py        # troca de provedor
+├── docs/
+│   └── AVALIACAO.md            # resultados e o que a avaliação encontrou
+├── LICENSE
 ├── requirements.txt
 └── .env.example
 ```
 
-Os testes não usam framework nem rede: rodam com `python test_*.py` e levam
-menos de um segundo. Cada um existe por causa de um defeito que aconteceu de
+Os testes não usam framework nem rede: `python -m tests.rodar` leva menos de um
+segundo. Cada um existe por causa de um defeito que aconteceu de
 verdade — o docstring de cada arquivo conta qual.
 
 ---
@@ -497,22 +479,26 @@ verdade — o docstring de cada arquivo conta qual.
 
 ---
 
-## Próximos passos
+## Limitações conhecidas
 
-Em aberto, por ordem de valor:
+Documentadas de propósito. Um README que só mostra acerto é propaganda.
 
-- [ ] **Nota de vigência para o `R$ 45,65`** do art. 18-A — a armadilha que a
-      avaliação encontrou e ainda não foi corrigida
-- [ ] Ampliar a avaliação para ~40 perguntas e rodar contra mais de um modelo,
-      publicando a comparação
-- [ ] Fontes clicáveis, abrindo o PDF na página citada
-- [ ] Registro de perguntas sem resposta alimentando a avaliação
-- [ ] HTTPS com domínio próprio e serviço `systemd`
-- [ ] Ampliação para direito trabalhista e contratos empresariais
-
-Feito e medido: busca híbrida, camada de vigência com autoridade estrutural,
-memória de conversa, streaming, limite por IP, modelo trocável, avaliação
-reproduzível.
+- **`R$ 45,65`** — a LC 123 traz esse valor absoluto para a contribuição do MEI.
+  É 5% do salário-mínimo **de 2016**, congelado na redação; a regra viva é o
+  percentual. Falta uma nota de vigência para esse dispositivo, e a avaliação
+  registra a falha.
+- **O escopo é deliberadamente estreito** — direito empresarial e tributário de
+  MEI/Simples. Trabalhista, contratos e a Reforma Tributária (IBS/CBS, em
+  transição até 2033) ficaram de fora para não misturar regimes.
+- **15 perguntas na avaliação é pouco** — cobre as falhas conhecidas, não o
+  domínio.
+- **Modelos pequenos erram por omissão.** O modelo local recusa 100% do que
+  está fora do escopo, mas às vezes recusa o que sabe responder. Para um
+  assistente jurídico, errar por omissão é a falha barata — mas é uma falha.
+- **Não há demonstração pública no ar.** Rodar o modelo localmente na instância
+  gratuita (ARM, sem GPU) levaria minutos por pergunta, e as camadas gratuitas
+  de API esgotam em poucas dezenas de consultas por dia. Uma demonstração que
+  falha é pior que nenhuma.
 
 ---
 
