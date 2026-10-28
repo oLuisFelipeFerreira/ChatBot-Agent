@@ -44,6 +44,11 @@ CHUNKS_FILE = "faiss_index/chunks.json"
 EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 PASTA_DADOS = "data"
 
+# Arquivos que ficam na pasta de dados mas NAO sao base de conhecimento.
+# O README da pasta explica como adicionar documentos; indexa-lo coloca o
+# texto "Coloque aqui o arquivo PDF..." competindo com a lei no indice.
+IGNORAR = {"README.md"}
+
 EXTENSOES = {".pdf", ".csv", ".html", ".htm", ".txt", ".md"}
 
 # Textos juridicos tem artigos longos: chunks maiores preservam melhor o sentido
@@ -191,7 +196,8 @@ def coletar_arquivos(caminho: str):
     p = Path(caminho)
     if p.is_dir():
         arquivos = sorted(
-            f for f in p.rglob("*") if f.suffix.lower() in EXTENSOES
+            f for f in p.rglob("*")
+            if f.suffix.lower() in EXTENSOES and f.name not in IGNORAR
         )
         if not arquivos:
             raise ValueError(

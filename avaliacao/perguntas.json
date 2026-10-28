@@ -3,8 +3,14 @@
     "id": "mei-limite",
     "pergunta": "Qual o limite de faturamento anual do MEI?",
     "espera": "resposta",
-    "fontes_esperadas": ["lc123_simples_nacional.html", "mei_perguntas_respostas.pdf", "manual_empresario_individual.pdf"],
-    "deve_conter": ["81.000"],
+    "fontes_esperadas": [
+      "lc123_simples_nacional.html",
+      "mei_perguntas_respostas.pdf",
+      "manual_empresario_individual.pdf"
+    ],
+    "deve_conter": [
+      "81.000"
+    ],
     "por_que": "Valor vigente da receita bruta anual do MEI, presente na LC 123 e nos manuais.",
     "verificado": false
   },
@@ -12,9 +18,20 @@
     "id": "mei-valor-mensal",
     "pergunta": "Quanto o MEI paga por mes?",
     "espera": "resposta",
-    "fontes_esperadas": ["mei_perguntas_respostas.pdf", "lc123_simples_nacional.html"],
-    "deve_conter_algum": ["5%", "5 %", "cinco por cento", "salario-minimo", "salario minimo"],
-    "nao_pode_conter": ["45,65"],
+    "fontes_esperadas": [
+      "mei_perguntas_respostas.pdf",
+      "lc123_simples_nacional.html"
+    ],
+    "deve_conter_algum": [
+      "5%",
+      "5 %",
+      "cinco por cento",
+      "salario-minimo",
+      "salario minimo"
+    ],
+    "nao_pode_conter": [
+      "45,65"
+    ],
     "por_que": "ARMADILHA DE VIGENCIA. O texto da LC 123 traz 'R$ 45,65' como valor fixo -- e 5% do salario-minimo de 2016, congelado na redacao. A regra viva e o PERCENTUAL. Um modelo local caiu nessa; o Gemini nao.",
     "verificado": false
   },
@@ -22,17 +39,42 @@
     "id": "porte-me-epp",
     "pergunta": "Qual a diferenca entre MEI, ME e EPP?",
     "espera": "resposta",
-    "fontes_esperadas": ["lc123_simples_nacional.html", "notas_de_vigencia.txt"],
-    "deve_conter": ["360.000", "4.800.000"],
-    "por_que": "Faixas de receita bruta do art. 3o da LC 123.",
-    "verificado": false
+    "fontes_esperadas": [
+      "lc123_simples_nacional.html",
+      "notas_de_vigencia.txt"
+    ],
+    "deve_conter": [
+      "360.000",
+      "4.800.000",
+      "81.000"
+    ],
+    "por_que": "Faixas de receita do art. 3o da LC 123. FALSO POSITIVO CORRIGIDO: o gabarito so exigia 360.000 e 4.800.000, e uma resposta que atribuia 360.000 ao MEI (o certo e 81.000), inventava limites de empregados e chamava ME/EPP de 'tipo juridico' PASSAVA. Porte nao e tipo juridico -- e a regra 4 do prompt e a nota de vigencia 2.",
+    "verificado": false,
+    "nao_pode_conter": [
+      "ME e um tipo juridico",
+      "ME é um tipo jurídico",
+      "EPP e um tipo juridico",
+      "EPP é um tipo jurídico",
+      "ate 10 empregados",
+      "até 10 empregados",
+      "ate 50 empregados",
+      "até 50 empregados"
+    ]
   },
   {
     "id": "eireli-extinta",
     "pergunta": "Posso abrir uma EIRELI?",
     "espera": "resposta",
-    "fontes_esperadas": ["notas_de_vigencia.txt"],
-    "deve_conter_algum": ["extinta", "extinto", "nao e mais", "nao existe mais", "transformad"],
+    "fontes_esperadas": [
+      "notas_de_vigencia.txt"
+    ],
+    "deve_conter_algum": [
+      "extinta",
+      "extinto",
+      "nao e mais",
+      "nao existe mais",
+      "transformad"
+    ],
     "por_que": "ARMADILHA DE VIGENCIA. A LC 123 ainda MENCIONA a EIRELI no art. 3o, mas ela foi extinta pela Lei 14.195/2021 e pela Lei 14.382/2022. O sistema precisa preferir a nota de vigencia ao texto literal da lei.",
     "verificado": false
   },
@@ -40,8 +82,14 @@
     "id": "me-nao-e-regime",
     "pergunta": "Toda microempresa precisa estar no Simples Nacional?",
     "espera": "resposta",
-    "fontes_esperadas": ["notas_de_vigencia.txt", "lc123_simples_nacional.html"],
-    "deve_conter_algum": ["nao", "não"],
+    "fontes_esperadas": [
+      "notas_de_vigencia.txt",
+      "lc123_simples_nacional.html"
+    ],
+    "deve_conter_algum": [
+      "nao",
+      "não"
+    ],
     "por_que": "Porte e regime tributario sao independentes. Uma ME pode estar no Lucro Presumido ou Real. Erro classico que o prompt proibe explicitamente.",
     "verificado": false
   },
@@ -50,7 +98,9 @@
     "pergunta": "A ME paga um valor fixo mensal como o MEI?",
     "espera": "resposta",
     "fontes_esperadas": [],
-    "nao_pode_conter": ["81.000"],
+    "nao_pode_conter": [
+      "81.000"
+    ],
     "por_que": "TESTE DA REGRA ANTI-ANALOGIA (regra 2 do prompt). O valor fixo mensal e exclusividade do MEI/Simei. O modelo nao pode estender a regra do MEI para a ME. Resposta aceitavel inclui recusar.",
     "verificado": false
   },
@@ -58,8 +108,14 @@
     "id": "conceito-empresario",
     "pergunta": "O que define juridicamente um empresario?",
     "espera": "resposta",
-    "fontes_esperadas": ["codigo_civil.html"],
-    "deve_conter_algum": ["966", "profissionalmente", "atividade economica organizada"],
+    "fontes_esperadas": [
+      "codigo_civil.html"
+    ],
+    "deve_conter_algum": [
+      "966",
+      "profissionalmente",
+      "atividade economica organizada"
+    ],
     "por_que": "Art. 966 do Codigo Civil. Testa se a busca alcanca o Codigo Civil, e nao so o material tributario.",
     "verificado": false
   },
@@ -67,8 +123,15 @@
     "id": "desenquadramento",
     "pergunta": "O que acontece se o MEI ultrapassar o limite de faturamento?",
     "espera": "resposta",
-    "fontes_esperadas": ["lc123_simples_nacional.html", "mei_perguntas_respostas.pdf", "mei_manual_dasn.pdf"],
-    "deve_conter_algum": ["20%", "desenquadr"],
+    "fontes_esperadas": [
+      "lc123_simples_nacional.html",
+      "mei_perguntas_respostas.pdf",
+      "mei_manual_dasn.pdf"
+    ],
+    "deve_conter_algum": [
+      "20%",
+      "desenquadr"
+    ],
     "por_que": "Regra dos 20% e comunicacao do desenquadramento.",
     "verificado": false
   },
@@ -76,8 +139,15 @@
     "id": "transportador-12",
     "pergunta": "Quanto paga de INSS o MEI transportador autonomo de cargas?",
     "espera": "resposta",
-    "fontes_esperadas": ["mei_perguntas_respostas.pdf", "lc123_simples_nacional.html"],
-    "deve_conter_algum": ["12%", "12 %", "doze por cento"],
+    "fontes_esperadas": [
+      "mei_perguntas_respostas.pdf",
+      "lc123_simples_nacional.html"
+    ],
+    "deve_conter_algum": [
+      "12%",
+      "12 %",
+      "doze por cento"
+    ],
     "por_que": "Aliquota diferenciada do transportador, que nao pode ser confundida com os 5% gerais.",
     "verificado": false
   },
@@ -85,7 +155,10 @@
     "id": "registro-ltda",
     "pergunta": "Como registrar uma sociedade limitada?",
     "espera": "resposta",
-    "fontes_esperadas": ["manual_sociedade_limitada.pdf", "in_drei_81.pdf"],
+    "fontes_esperadas": [
+      "manual_sociedade_limitada.pdf",
+      "in_drei_81.pdf"
+    ],
     "por_que": "Testa se a busca alcanca os manuais do DREI.",
     "verificado": false
   },
