@@ -1,0 +1,3 @@
+# Base de conhecimento: documentos oficiais de terceiros, nao codigo do projeto.
+# Sem isso o GitHub classifica o repositorio como HTML por causa das leis em .html.
+data/** linguist-vendored
